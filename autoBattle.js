@@ -1,0 +1,223 @@
+var rarities = [ItemRarity.COMMON, ItemRarity.UNCOMMON, ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY];
+var monsters = [MonsterRarity.COMMON, MonsterRarity.RARE, MonsterRarity.ELITE, MonsterRarity.BOSS];
+var mercs    = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
+var XPFarmLevel = 176;
+var lootFarmStep = 8;
+var lootFarm = false;
+var XPS = 0;
+var lastXP = 0;
+ 
+function efficiency() {
+  return mercs.map(function(m){return {name : m.toUpperCase(), efficiency : game.mercenaryManager[m + 'Price'] / parseFloat(game.mercenaryManager.getGps().replace(/,/g,'')) + game.mercenaryManager[m + 'Price'] / game.mercenaryManager.getMercenariesGps(m.toUpperCase())}}).sort(function(a,b){return a.efficiency > b.efficiency});
+}
+ 
+function equipAndSellInventory() {
+  game.inventory.slots.forEach(function(i,x){
+    if (i != null) {
+    var newSlot = shouldEquip(i);
+      if (newSlot == -1) {
+        //Item isn't better than the current one, sell it
+        game.inventory.sellItem(x);
+      } else {
+        //Item is better, equip it
+        game.equipment.equipItemInSlot(i, newSlot, x);
+      }
+    }
+  });
+}
+ 
+//Function will return the slot this should be equipped in.  -1 meaning it shouldn't be equipped.
+function shouldEquip(newItem) {
+  var compareTo;
+  var slot;
+  switch(newItem.type) {
+    case ItemType.HELM:
+      slot = isBetterThan(game.equipment.helm(), newItem) ? 0 : -1;
+      break;
+    case ItemType.SHOULDERS:
+      slot = isBetterThan(game.equipment.shoulders(), newItem) ? 1 : -1;
+      break;
+    case ItemType.CHEST:
+      slot = isBetterThan(game.equipment.chest(), newItem) ? 2 : -1;
+      break;
+    case ItemType.LEGS:
+      slot = isBetterThan(game.equipment.chest(), newItem) ? 3 : -1;
+      break;
+    case ItemType.WEAPON: 
+      slot = isBetterThan(game.equipment.weapon(), newItem) ? 4 : -1;
+      break;
+    case ItemType.GLOVES:
+      slot = isBetterThan(game.equipment.gloves(), newItem) ? 5 : -1;
+      break;
+    case ItemType.BOOTS:
+      slot = isBetterThan(game.equipment.boots(), newItem) ? 6 : -1;
+      break;
+    case ItemType.TRINKET:
+      slot = isBetterThan(game.equipment.trinket1(), newItem) ? 7 : -1;
+      //if it wasn't better than trinket 1 check trinket 2.
+      if ((slot == -1) && isBetterThan(game.equipment.trinket2(), newItem)) { slot = 8; }
+      break;
+    case ItemType.OFF_HAND:
+      slot = isBetterThan(game.equipment.off_hand(), newItem) ? 9 : -1;
+      break;
+  }
+  
+  return slot;
+
+}
+
+// will return true if newItem is better than oldItem, false otherwise.
+function isBetterThan(oldItem, newItem) { 
+  //if newItem isn't passed
+  if (newItem == null) return false;
+  
+  //if there's no oldItem new is automatically better
+  if (oldItem == null) return true;
+  
+  //if the items aren't the same type, return false automatically
+  if (oldItem.type != newItem.type) return false;
+  
+  // compare weapons and trinkets differently
+  switch (oldItem.type) {
+    case ItemType.WEAPON:
+      return isBetterThanWeapon(oldItem, newItem);
+    case ItemType.TRINKET:
+      return isBetterThanTrinket(oldItem, newItem);
+    default:
+      return isBetterThanItem(oldItem, newItem);
+  }
+}
+
+// Checks weapons to see if new is better than old and returns true if so, false otherwise
+// Assumes items are same type and not null
+function isBetterThanWeapon(oldWeapon, newWeapon) {
+  var oldHasCrushing = oldWeapon.effects.reduce( function(e,n){ return e.concat(n.type); }, []).indexOf("CRUSHING_BLOWS") > -1;
+  var newHasCrushing = newWeapon.effects.reduce( function(e,n){ return e.concat(n.type); }, []).indexOf("CRUSHING_BLOWS") > -1;
+  var oldAvgDamage = (oldWeapon.minDamage + oldWeapon.maxDamage) / 2 + oldWeapon.damageBonus;
+  var newAvgDamage = (newWeapon.minDamage + newWeapon.maxDamage) / 2 + newWeapon.damageBonus;
+  
+  //Crushing blows always overrides other considerations
+  if (oldHasCrushing && !newHasCrushing) return false;
+  if (newHasCrushing && !oldHasCrushing) return true;
+
+  //Next is average damage
+  if (oldAvgDamage > newAvgDamage) return false;  
+  if (newAvgDamage > oldAvgDamage) return true;
+  
+  //Having an effect is better than not having an effect, but may need to actually compare them later
+  if (oldWeapon.effects.length > newWeapon.effects.length) return false;
+  if (newWeapon.effects.length > oldWeapon.effects.length) return true;
+  
+  //From here on we're comparing stats
+  return isBetterThanStats(oldWeapon, newWeapon);
+
+}
+ 
+function isBetterThanTrinket(oldTrinket, newTrinket) {
+  var oldEffects = oldTrinket.effects.reduce( function (e,n){ return e.concat(n.type); }, []);
+  var newEffects = newTrinket.effects.reduce( function (e,n){ return e.concat(n.type); }, []);
+  
+  //Swiftness is the best
+  if (oldEffects.indexOf("SWIFTNESS") > -1 && newEffects.indexOf("SWIFTNESS") == -1) return false;
+  if (newEffects.indexOf("SWIFTNESS") > -1 && oldEffects.indexOf("SWIFTNESS") == -1) return false;
+  
+  //Pillaging is next
+  if (oldEffects.indexOf("PILLAGING") > -1 && newEffects.indexOf("PILLAGING") == -1) return false;
+  if (newEffects.indexOf("PILLAGING") > -1 && oldEffects.indexOf("PILLAGING") == -1) return false;
+  
+  //Berserking is next
+  if (oldEffects.indexOf("BERSERKING") > -1 && newEffects.indexOf("BERSERKING") == -1) return false;
+  if (newEffects.indexOf("BERSERKING") > -1 && oldEffects.indexOf("BERSERKING") == -1) return false;
+  
+  //Nourishment isn't really relevant so just compare on stats
+  return isBetterThanStats(oldTrinket, newTrinket);
+  
+}
+
+function isBetterThanItem(oldItem, newItem) {
+  var oldEffects = oldItem.effects.reduce( function (e,n){ return e.concat(n.type); }, []);
+  var newEffects = newItem.effects.reduce( function (e,n){ return e.concat(n.type); }, []);
+  
+  //Need to have something that checks rend vs frost vs flame vs barrier imbued eventually
+  //but for now just ranked as flame, frost, rend, barrier
+  //flame imbued is the best
+  if (oldEffects.indexOf("FLAME_IMBUED") > -1 && newEffects.indexOf("FLAME_IMBUED") == -1) return false;
+  if (newEffects.indexOf("FLAME_IMBUED") > -1 && oldEffects.indexOf("FLAME_IMBUED") == -1) return false;
+  
+  //Frost shards is next
+  if (oldEffects.indexOf("FROST_SHARDS") > -1 && newEffects.indexOf("FROST_SHARDS") == -1) return false;
+  if (newEffects.indexOf("FROST_SHARDS") > -1 && oldEffects.indexOf("FROST_SHARDS") == -1) return false;
+  
+  //Wounding is next
+  if (oldEffects.indexOf("WOUNDING") > -1 && newEffects.indexOf("WOUNDING") == -1) return false;
+  if (newEffects.indexOf("WOUNDING") > -1 && oldEffects.indexOf("WOUNDING") == -1) return false;
+  
+  //Barrier is next
+  if (oldEffects.indexOf("BARRIER") > -1 && newEffects.indexOf("BARRIER") == -1) return false;
+  if (newEffects.indexOf("BARRIER") > -1 && oldEffects.indexOf("BARRIER") == -1) return false;
+ 
+  //Curing isn't really relevant so just compare stats
+  return isBetterThanStats(oldItem, newItem);
+  
+}
+ 
+// Checks stats on item to see if new is better than old and returns true if so, false otherwise
+// Assumes items are same type and not null
+function isBetterThanStats(oldItem, newItem) {
+  
+}
+ 
+var autoInventory = setInterval(function(){
+  equipAndSellInventory();
+},250);
+
+
+ 
+function hopBattle() {
+  game.leaveBattle();
+  game.enterBattle();
+}
+
+function attack() {
+  if (game.player.health * 2 >= game.player.getMaxHealth()) {
+    attackButtonClick();
+  }
+}
+
+var autoFight = setInterval(function() {
+  if (game.inBattle) {
+    if (lootFarm) {
+      game.battleLevel = lootFarmStep * 35 + 1;
+      if (game.monster.rarity != MonsterRarity.BOSS) {
+        hopBattle();
+      } else {
+        attack();
+      }
+    } else {
+      game.battleLevel = XPFarmLevel;
+      if (game.monster.rarity != MonsterRarity.COMMON) {
+        hopBattle();
+      } else {
+        attack();
+      }
+    }
+  }
+},0);
+
+var autoMisc = setInterval(function() {
+  autoBuy();
+  calculateXP();
+},5000);
+
+function autoBuy() {
+  var bestPurchase = efficiency()[0];
+  if (game.player.gold > game.mercenaryManager[bestPurchase.name.toLowerCase() + "Price"]) {
+    game.mercenaryManager.purchaseMercenary(bestPurchase.name);
+  }
+}
+
+function calculateXP() {
+  var earnedXP = game.stats.experienceEarned - lastXP;
+  lastXP = game.stats.experienceEarned;
+  XPS = earnedXP/5;
+}
