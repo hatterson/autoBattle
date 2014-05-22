@@ -322,7 +322,6 @@ function attack() {
 //Automatically processes an attack or hop for the first quest in line that isn't a merc quest
 function runQuest() {
     var quest = game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || x.type == QuestType.ENDLESS_BOSSKILL; })[0];
-    console.log(quest);
     
     switch (quest.type) {
         case QuestType.KILL:
