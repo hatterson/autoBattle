@@ -1,5 +1,5 @@
-var rarities = [ItemRarity.COMMON, ItemRarity.UNCOMMON, ItemRarity.RARE, ItemRarity.EPIC, ItemRarity.LEGENDARY];
-var monsters = [MonsterRarity.COMMON, MonsterRarity.RARE, MonsterRarity.ELITE, MonsterRarity.BOSS];
+function defaultFor(arg, val) { return typeof arg !== 'undefined' ? arg : val; }
+
 var mercs    = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
 var XPFarmLevel = 176;
 var lootFarmStep = 8;
@@ -24,6 +24,31 @@ function equipAndSellInventory() {
       }
     }
   });
+}
+
+function updateMobLevels() {
+  var minDamage = getEstimatedDamage();
+  var monsterHealth = 0;
+  var level = 1;
+  //keep going up while we can one shot
+  while (monsterHealth < minDamage) {
+    level++;
+    //calculate health of mob at new level
+    monsterHealth = Sigma(level) * Math.pow(1.05, level) + 5;
+  }
+  level--;
+  XPFarmLevel = Math.max(1,level);
+  level = 1;
+  var bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
+  bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
+  while (bossHit < game.player.health/2)
+  {
+    level++;
+    bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
+    bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
+  }
+  level--;
+  lootFarmStep = Math.floor(level/35);
 }
  
 //Function will return the slot this should be equipped in.  -1 meaning it shouldn't be equipped.
@@ -119,15 +144,15 @@ function isBetterThanTrinket(oldTrinket, newTrinket) {
   
   //Swiftness is the best
   if (oldEffects.indexOf("SWIFTNESS") > -1 && newEffects.indexOf("SWIFTNESS") == -1) return false;
-  if (newEffects.indexOf("SWIFTNESS") > -1 && oldEffects.indexOf("SWIFTNESS") == -1) return false;
+  if (newEffects.indexOf("SWIFTNESS") > -1 && oldEffects.indexOf("SWIFTNESS") == -1) return true;
   
   //Pillaging is next
   if (oldEffects.indexOf("PILLAGING") > -1 && newEffects.indexOf("PILLAGING") == -1) return false;
-  if (newEffects.indexOf("PILLAGING") > -1 && oldEffects.indexOf("PILLAGING") == -1) return false;
+  if (newEffects.indexOf("PILLAGING") > -1 && oldEffects.indexOf("PILLAGING") == -1) return true;
   
-  //Berserking is next
-  if (oldEffects.indexOf("BERSERKING") > -1 && newEffects.indexOf("BERSERKING") == -1) return false;
-  if (newEffects.indexOf("BERSERKING") > -1 && oldEffects.indexOf("BERSERKING") == -1) return false;
+  //Berserking is very underpowered since it doesn't multiply ignore it for now
+  //if (oldEffects.indexOf("BERSERKING") > -1 && newEffects.indexOf("BERSERKING") == -1) return false;
+  //if (newEffects.indexOf("BERSERKING") > -1 && oldEffects.indexOf("BERSERKING") == -1) return false;
   
   //Nourishment isn't really relevant so just compare on stats
   return isBetterThanStats(oldTrinket, newTrinket);
@@ -164,14 +189,97 @@ function isBetterThanItem(oldItem, newItem) {
 // Checks stats on item to see if new is better than old and returns true if so, false otherwise
 // Assumes items are same type and not null
 function isBetterThanStats(oldItem, newItem) {
+  var critChange = newItem.critChance - oldItem.critChance;
+  critChange = critChange * ((game.player.powerShards / 100) + 1);
   
+  //we're losing crit and taking ourselves below 100 old is better
+  if ((critChange < 0) && (game.player.getCritChance() + critChange < 100)) return false;
+  
+  //we're under 100 and we're gaining crit
+  if ((critChange > 0) && (game.player.getCritChance() < 100)) return true;
+  
+  //otherwise, compare gold and XP gain
+  var goldAndXPChange = newItem.goldGain + newItem.experienceGain - (oldItem.goldGain + oldItem.experienceGain);
+  
+  if (goldAndXPChange > 0) return true;
+  if (goldAndXPChange < 0) return false;
+  
+  //next is item rarity
+  if (oldItem.itemRarity > newItem.itemRarity) return false;
+  if (oldItem.itemRarity < newItem.itemRarity) return true;
+  
+  //then damage modifiers
+  if ((oldItem.strength + oldItem.agility) > (newItem.strength + newItem.agility)) return true;
+  if ((oldItem.strength + oldItem.agility) < (newItem.strength + newItem.agility)) return false;
+  
+  //if we're equal to here just take the higher ilevel
+  if (newItem.level > oldItem.level) return true;
+  
+  return false;
 }
  
-var autoInventory = setInterval(function(){
-  equipAndSellInventory();
-},250);
+ 
+//this is used for XP farming calculations, assumed to be fighting common mobs
+//debuffs from abilities are not calculated because we're assuming one shotting monsters, so only base damage matters
+function getEstimatedDamage(mobLevel, assumeCrit, useMinimum) {
+  mobLevel = defaultFor(mobLevel, game.player.level);
+  assumeCrit = defaultFor(assumeCrit, true);
+  useMinimum = defaultFor(useMinimum, false);
+  
+  var damageDone = 0;
+  
+  var attacks = 0;
+  var averageDamage = 0;
+  if (useMinimum) {
+    averageDamage = game.player.getMinDamage();
+  } else {
+    averageDamage = (game.player.getMinDamage() + game.player.getMaxDamage()) / 2;
+  }
+  
+  // If the player is using power strike, multiply the damage
+  if (game.player.attackType == AttackType.POWER_STRIKE) {
+    averageDamage *= 1.5;
+  }
+    
+  //average in crits
+  averageDamage *= (game.player.getCritDamage() / 100) * (assumeCrit ? 1 : Math.min(100,(game.player.getCritChance() / 100)));
 
 
+  // If the player has any crushing blows effects then deal the damage from those effects
+  // Not useful for xp farming since it's such a rare effect
+  //var crushingBlowsEffects = game.player.getEffectsOfType(EffectType.CRUSHING_BLOWS);
+  //var crushingBlowsDamage = 0;
+  //if (crushingBlowsEffects.length > 0) {
+  //  for (var y = 0; y < crushingBlowsEffects.length; y++) {
+  //    crushingBlowsDamage += crushingBlowsEffects[y].value;
+  //  }
+  //  if (crushingBlowsDamage > 0) {
+  //    damageDone += (crushingBlowsDamage / 100) * game.calculateMonsterHealth(mobLevel, "COMMON");
+  //  }
+  //}
+  
+  var abilityDamage = 0;
+  
+  abilityDamage = game.player.abilities.getIceBladeDamage(0) + game.player.abilities.getFireBladeDamage(0);
+  abilityDamage *= (game.player.getCritDamage() / 100) * (assumeCrit ? 1 : Math.min(100,(game.player.getCritChance() / 100)));
+  
+  attacks = 1;
+  if (game.player.attackType == AttackType.DOUBLE_STRIKE) { attacks++; }
+  
+  //swiftness is a simple multiplier just like attack amount
+  var swiftnessEffects = game.player.getEffectsOfType(EffectType.SWIFTNESS);
+  attacks *= (swiftnessEffects.length + 1);
+  
+  damageDone += averageDamage;
+  damageDone += abilityDamage;
+  
+  damageDone *= attacks;
+  
+  var berserkingDamage = game.player.getEffectsOfType(EffectType.BERSERKING).reduce( function(e, b){ return e + (b.value*b.chance/100);},0);
+  damageDone += berserkingDamage * attacks;
+  
+  return damageDone;
+}
  
 function hopBattle() {
   game.leaveBattle();
@@ -183,6 +291,10 @@ function attack() {
     attackButtonClick();
   }
 }
+
+var autoInventory = setInterval(function(){
+  equipAndSellInventory();
+},250);
 
 var autoFight = setInterval(function() {
   if (game.inBattle) {
@@ -207,6 +319,7 @@ var autoFight = setInterval(function() {
 var autoMisc = setInterval(function() {
   autoBuy();
   calculateXP();
+  updateMobLevels();
 },5000);
 
 function autoBuy() {
