@@ -63,22 +63,31 @@ function updateMobLevels() {
     if (capMobLevelAtPlayerLevel) XPFarmLevel = Math.min(game.player.level, level);
     level = 1;
     var bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
-    bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
-    while (bossHit < game.player.health / 2) {
+    //bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
+    while (!attackWillKill(bossHit, true) && !attackWillLoseHP(bossHit)) {
+        //loop until either the boss will one shot me or I'll lose HP
         level++;
         bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
-        bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
+        //bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
     }
     level--;
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     lootFarmStep = Math.floor(level / 35);
 }
 
-function attackWillKill() {
-    var damage = Math.max(0, game.monster.damage - Math.floor(game.monster.damage * (game.player.calculateDamageReduction() / 100)));
+function attackWillLoseHP(baseDamage) {
+    var damage = Math.max(0, baseDamage - Math.floor(baseDamage * (game.player.calculateDamageReduction() / 100)));
+    var healAmount = game.player.abilities.getRejuvenatingStrikesHealAmount(0) * (game.player.attackType == AttackType.DOUBLE_STRIKE ? 2 : 1);
+    return damage > healAmount;
+}
+
+function attackWillKill(monsterBaseDamage, fromFull) {
+    monsterDamage = defaultFor(monsterBaseDamage, game.monster.damage);
+    fromFull = defaultFor(fromFull, false);
+    var damage = Math.max(0, monsterDamage - Math.floor(monsterDamage * (game.player.calculateDamageReduction() / 100)));
     var healAmount = game.player.abilities.getRejuvenatingStrikesHealAmount(0) * (game.player.attackType == AttackType.DOUBLE_STRIKE ? 2 : 1);
     var playerHealthAfterHeal = Math.min(game.player.getMaxHealth(), game.player.health +  healAmount);
-    return game.monster.canAttack && playerHealthAfterHeal <= damage;
+    return (game.monster.canAttack || fromFull) && (fromFull ? game.player.getMaxHealth() : playerHealthAfterHeal) <= damage;
 }
 
 //Function will return the slot this should be equipped in.  -1 meaning it shouldn't be equipped.
