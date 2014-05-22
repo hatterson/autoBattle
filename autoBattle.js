@@ -66,7 +66,7 @@ function shouldEquip(newItem) {
       slot = isBetterThan(game.equipment.chest(), newItem) ? 2 : -1;
       break;
     case ItemType.LEGS:
-      slot = isBetterThan(game.equipment.chest(), newItem) ? 3 : -1;
+      slot = isBetterThan(game.equipment.legs(), newItem) ? 3 : -1;
       break;
     case ItemType.WEAPON: 
       slot = isBetterThan(game.equipment.weapon(), newItem) ? 4 : -1;
