@@ -6,6 +6,7 @@ var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
 var XPFarmLevel = 0;
 var lootFarmStep = 0;
 var lootFarm = false;
+var autoQuest = true;
 var XPS = 0;
 var lastXP = 0;
 
@@ -318,13 +319,45 @@ function attack() {
     }
 }
 
+//Automatically processes an attack or hop for the first quest in line that isn't a merc quest
+function runQuest() {
+    var quest = game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || x.type == QuestType.ENDLESS_BOSSKILL; })[0];
+    console.log(quest);
+    
+    switch (quest.type) {
+        case QuestType.KILL:
+            //Kill X of Level Y type mobs  Best to use only commons for speed
+            processMobForQuest(quest.typeId, MonsterRarity.COMMON);
+            break;
+        case QuestType.ENDLESS_BOSSKILL:
+            //Kill 1 boss of current player level
+            processMobForQuest(game.player.level, MonsterRarity.BOSS);
+            break;
+    }
+}
+
+function processMobForQuest(level, rarity) {
+    if (game.battleLevel != level) { 
+        game.battleLevel = level;
+        hopBattle();
+    }
+    if (game.monster.rarity != rarity) {
+        hopBattle();   
+    } else {
+        attack();
+    }
+}
+
 var autoInventory = setInterval(function () {
     equipAndSellInventory();
 }, 250);
 
 var autoFight = setInterval(function () {
     if (game.inBattle) {
-        if (lootFarm) {
+        //ENDLESS_BOSSKILL is from Endless Improvement, might as well check for them
+        if (autoQuest && game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || x.type == QuestType.ENDLESS_BOSSKILL; }).length > 0) {
+            runQuest();
+        } else if (lootFarm) {
             game.battleLevel = lootFarmStep * 35 + 1;
             if (game.monster.rarity != MonsterRarity.BOSS) {
                 hopBattle();
