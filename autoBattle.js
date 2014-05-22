@@ -9,6 +9,7 @@ var lootFarm = false;
 var autoQuest = true;
 var XPS = 0;
 var lastXP = 0;
+var capMobLevelAtPlayerLevel = true;
 
 function efficiency() {
     return mercs.map(function (m) {
@@ -48,6 +49,7 @@ function updateMobLevels() {
     }
     level--;
     XPFarmLevel = Math.max(1, level);
+    if (capMobLevelAtPlayerLevel) XPFarmLevel = Math.min(game.player.level, level);
     level = 1;
     var bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
     bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
@@ -57,6 +59,7 @@ function updateMobLevels() {
         bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
     }
     level--;
+    if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     lootFarmStep = Math.floor(level / 35);
 }
 
