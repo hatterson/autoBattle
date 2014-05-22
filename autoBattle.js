@@ -167,19 +167,19 @@ function isBetterThanItem(oldItem, newItem) {
   //but for now just ranked as flame, frost, rend, barrier
   //flame imbued is the best
   if (oldEffects.indexOf("FLAME_IMBUED") > -1 && newEffects.indexOf("FLAME_IMBUED") == -1) return false;
-  if (newEffects.indexOf("FLAME_IMBUED") > -1 && oldEffects.indexOf("FLAME_IMBUED") == -1) return false;
+  if (newEffects.indexOf("FLAME_IMBUED") > -1 && oldEffects.indexOf("FLAME_IMBUED") == -1) return true;
   
   //Frost shards is next
   if (oldEffects.indexOf("FROST_SHARDS") > -1 && newEffects.indexOf("FROST_SHARDS") == -1) return false;
-  if (newEffects.indexOf("FROST_SHARDS") > -1 && oldEffects.indexOf("FROST_SHARDS") == -1) return false;
+  if (newEffects.indexOf("FROST_SHARDS") > -1 && oldEffects.indexOf("FROST_SHARDS") == -1) return true;
   
   //Wounding is next
   if (oldEffects.indexOf("WOUNDING") > -1 && newEffects.indexOf("WOUNDING") == -1) return false;
-  if (newEffects.indexOf("WOUNDING") > -1 && oldEffects.indexOf("WOUNDING") == -1) return false;
+  if (newEffects.indexOf("WOUNDING") > -1 && oldEffects.indexOf("WOUNDING") == -1) return true;
   
   //Barrier is next
   if (oldEffects.indexOf("BARRIER") > -1 && newEffects.indexOf("BARRIER") == -1) return false;
-  if (newEffects.indexOf("BARRIER") > -1 && oldEffects.indexOf("BARRIER") == -1) return false;
+  if (newEffects.indexOf("BARRIER") > -1 && oldEffects.indexOf("BARRIER") == -1) return true;
  
   //Curing isn't really relevant so just compare stats
   return isBetterThanStats(oldItem, newItem);
@@ -209,8 +209,8 @@ function isBetterThanStats(oldItem, newItem) {
   if (oldItem.itemRarity < newItem.itemRarity) return true;
   
   //then damage modifiers
-  if ((oldItem.strength + oldItem.agility) > (newItem.strength + newItem.agility)) return true;
-  if ((oldItem.strength + oldItem.agility) < (newItem.strength + newItem.agility)) return false;
+  if ((oldItem.strength + oldItem.agility) > (newItem.strength + newItem.agility)) return false;
+  if ((oldItem.strength + oldItem.agility) < (newItem.strength + newItem.agility)) return true;
   
   //if we're equal to here just take the higher ilevel
   if (newItem.level > oldItem.level) return true;
