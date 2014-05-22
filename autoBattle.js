@@ -10,6 +10,7 @@ var autoQuest = true;
 var XPS = 0;
 var lastXP = 0;
 var capMobLevelAtPlayerLevel = true;
+var lootFarmRarities = [MonsterRarity.BOSS, MosterRarity.ELITE];
 
 function efficiency() {
     return mercs.map(function (m) {
@@ -20,6 +21,16 @@ function efficiency() {
     }).sort(function (a, b) {
         return a.efficiency > b.efficiency
     });
+}
+
+function maxMonsterRarity(level) {
+    if (level >= 30) {
+        return MonsterRarity.BOSS;
+    } else if (level >= 10) {
+        return MonsterRarity.ELITE;
+    } else {
+        return MosterRarity.RARE;
+    }
 }
 
 function equipAndSellInventory() {
@@ -61,6 +72,13 @@ function updateMobLevels() {
     level--;
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     lootFarmStep = Math.floor(level / 35);
+}
+
+function attackWillKill() {
+    var damage = Math.max(0, game.monster.damage - Math.floor(game.monster.damage * (game.player.calculateDamageReduction() / 100)));
+    var healAmount = game.player.abilities.getRejuvenatingStrikesHealAmount(0) * (game.player.attackType == AttackType.DOUBLE_STRIKE ? 2 : 1);
+    var playerHealthAfterHeal = Math.min(game.player.getMaxHealth(), game.player.health +  healAmount);
+    return game.monster.canAttack && playerHealthAfterHeal <= damage;
 }
 
 //Function will return the slot this should be equipped in.  -1 meaning it shouldn't be equipped.
@@ -317,7 +335,7 @@ function hopBattle() {
 }
 
 function attack() {
-    if (game.player.health * 2 >= game.player.getMaxHealth()) {
+    if (!attackWillKill()) {
         attackButtonClick();
     }
 }
@@ -361,10 +379,11 @@ var autoFight = setInterval(function () {
             runQuest();
         } else if (lootFarm) {
             game.battleLevel = lootFarmStep * 35 + 1;
-            if (game.monster.rarity != MonsterRarity.BOSS) {
-                hopBattle();
-            } else {
+            if ((lootFarmRarities.indexOf(game.moster.rarity) > -1) || game.moster.rarity == maxMonsterRarity(game.battleLevel)) {
+                //One of the ones we're looking for
                 attack();
+            } else {
+                hopBattle();
             }
         } else {
             game.battleLevel = XPFarmLevel;
@@ -385,8 +404,20 @@ var autoMisc = setInterval(function () {
 
 function autoBuy() {
     var bestPurchase = efficiency()[0];
-    if (game.player.gold > game.mercenaryManager[bestPurchase.name.toLowerCase() + "Price"]) {
+    while (game.player.gold > game.mercenaryManager[bestPurchase.name.toLowerCase() + "Price"]) {
         game.mercenaryManager.purchaseMercenary(bestPurchase.name);
+        bestPurchase = efficiency()[0];
+    }
+}
+
+function autoLevel() {
+    while (game.statUpgradesManager.upgrades.length > 0) {
+        //level up is available
+        if ((game.player.skillPointsSpent + 2) % 5 == 0) {
+            //Level up type is selecting an ability
+        } else {
+            //Stat level up type
+        }
     }
 }
 
