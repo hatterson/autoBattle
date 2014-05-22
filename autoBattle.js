@@ -411,15 +411,107 @@ function autoBuy() {
 }
 
 function autoLevel() {
-    while (game.statUpgradesManager.upgrades.length > 0) {
+    while (game.player.skillPoints > 0)
         //level up is available
         if ((game.player.skillPointsSpent + 2) % 5 == 0) {
             //Level up type is selecting an ability
+            abilityLevelUp();
         } else {
             //Stat level up type
+            statLevelUp();
         }
     }
 }
+
+function abilityLevelUp() {
+    //In case the user has it open, don't want to allow them to click it after a level up
+    $("#abilityUpgradesWindow").hide();
+    
+    var ability = getBestAbilityName();
+    
+    game.player.increaseAbilityPower(ability);
+    
+}
+
+function getBestAbilityName() {
+    var ability;
+    
+    //Rejuv scales crazy with level and damage, so I'll just get it to level 5 for now...
+    if (game.player.abilities.baseRejuvenatingStrikesLevel < 5) {
+        ability = AbilityName.REJUVENATING_STRIKES;
+    } else {
+        //Right now we're just going on lowest level, theoretically this should have some logic in it later
+        if (game.player.abilities.baseRendLevel < game.player.abilities.baseIceBladeLevel) {
+            ability = AbilityName.FIRE_BLADE;
+            if (game.player.abilities.baseRendLevel < game.player.abilities.baseFireBladeLevel) ability = AbilityName.REND;
+        } else {
+            ability = AbilityName.FIRE_BLADE;
+            if (game.player.abilities.baseIceBladeLevel < game.player.abilities.baseFireBladeLevel) ability = AbilityName.ICE_BLADE;
+        }
+    }
+    
+    return ability;
+}
+
+function statLevelUp() {
+    var upgrades = game.statUpgradeManager.upgrades[0];
+    
+    var index;
+    var value = 0;
+    
+    for (var i=0; i<3; i++) {
+        var tmpVal = getStatUpgradeValue(upgrades.type, upgrades.amount);
+        if (tmpVal > value) {
+            //better than what we already had
+            value = tmpVal;
+            index = i;
+        }
+    }
+    
+    //The function does the button click, it's annoying and I've asked the dev to refactor it, but for now I have to pass a button to it
+    statUpgradeButtonClick(document.getElementById('statUpgradeButton1'),index);
+    
+}
+
+function getStatUpgradeValue(type, amount) {
+    switch(type) {
+        case StatUpgradeType.ITEM_RARITY:
+            //9900 means that every boss will drop a legendary item
+            if (getItemRarityWithoutItems() < 9900) {
+                return 1000;
+            } else {
+                //no value at that point and there's going to be something else with value
+                return 0;
+            }
+            break;
+        case StatUpgradeType.GOLD_GAIN:
+                return 999;
+            break;
+        case StatUpgradeType.EXPERIENCE_GAIN:
+                return 998;
+            break;
+        case StatUpgradeType.DAMAGE:
+            break;
+        case StatUpgradeType.STRENGTH:
+            break;
+        case StatUpgradeType.AGILITY:
+            break;
+        case StatUpgradeType.CRIT_DAMAGE:
+            break;
+        case StatUpgradeType.STAMINA:
+        case StatUpgradeType.ARMOUR:
+        case StatUpgradeType.EVASION:
+        case StatUpgradeType.HP5:
+            //not really useful but need a value
+            return 0.1;
+            break;
+    }
+}
+
+function getItemRarityWithoutItems() {
+    return (game.player.baseStats.itemRarity + game.player.chosenLevelUpBonuses.itemRarity) * ((game.player.powerShards / 100) + 1);
+}
+
 
 function calculateXP() {
     var earnedXP = game.stats.experienceEarned - lastXP;
