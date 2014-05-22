@@ -1,8 +1,8 @@
 function defaultFor(arg, val) { return typeof arg !== 'undefined' ? arg : val; }
 
 var mercs    = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
-var XPFarmLevel = 176;
-var lootFarmStep = 8;
+var XPFarmLevel = 0;
+var lootFarmStep = 0;
 var lootFarm = false;
 var XPS = 0;
 var lastXP = 0;
