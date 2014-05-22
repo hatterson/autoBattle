@@ -10,7 +10,7 @@ var autoQuest = true;
 var XPS = 0;
 var lastXP = 0;
 var capMobLevelAtPlayerLevel = true;
-var lootFarmRarities = [MonsterRarity.BOSS, MosterRarity.ELITE];
+var lootFarmRarities = [MonsterRarity.BOSS, MonsterRarity.ELITE];
 
 function efficiency() {
     return mercs.map(function (m) {
@@ -29,7 +29,7 @@ function maxMonsterRarity(level) {
     } else if (level >= 10) {
         return MonsterRarity.ELITE;
     } else {
-        return MosterRarity.RARE;
+        return MonsterRarity.RARE;
     }
 }
 
@@ -379,7 +379,7 @@ var autoFight = setInterval(function () {
             runQuest();
         } else if (lootFarm) {
             game.battleLevel = lootFarmStep * 35 + 1;
-            if ((lootFarmRarities.indexOf(game.moster.rarity) > -1) || game.moster.rarity == maxMonsterRarity(game.battleLevel)) {
+            if ((lootFarmRarities.indexOf(game.monster.rarity) > -1) || game.monster.rarity == maxMonsterRarity(game.battleLevel)) {
                 //One of the ones we're looking for
                 attack();
             } else {
