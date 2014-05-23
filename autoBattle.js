@@ -1,16 +1,40 @@
-function defaultFor(arg, val) {
-    return typeof arg !== 'undefined' ? arg : val;
-}
+var autoFightEnabled = true;
+var autoBuyEnabled = true;
+var autoQuestEnabled = true;
+var autoLevelEnabled = true;
+var autoInventoryEnabled = true;
+var autoMobLevelUpdateEnabled = true;
+
+var autoFightBot = 0;
+var autoFightBotInterval = 0;
+var autoBuyBot = 0;
+var autoBuyBotInterval = 5000;
+var autoLevelBot = 0;
+var autoLevelBotInterval = 5000;
+var autoInventoryBot = 0;
+var autoInventoryBotInterval = 250;
+var autoMobLevelUpdateBot = 0;
+var autoMobLevelUpdateBotInterval = 10000;
+
+//Currently it is not possible to fight a mob above your level in game, but there's no logic check against it
+//If you feel it's cheating to fight higher level mobs, then leave this as true
+//Otherwise feel free to set to falase
+var capMobLevelAtPlayerLevel = true;
 
 var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
 var XPFarmLevel = 0;
 var lootFarmStep = 0;
 var lootFarm = false;
-var autoQuest = true;
 var XPS = 0;
 var lastXP = 0;
-var capMobLevelAtPlayerLevel = true;
+
 var lootFarmRarities = [MonsterRarity.BOSS, MonsterRarity.ELITE];
+
+setTimeout(function() { autoBattleStart(); }, 5000);
+
+function defaultFor(arg, val) {
+    return typeof arg !== 'undefined' ? arg : val;
+}
 
 function efficiency() {
     return mercs.map(function (m) {
@@ -377,42 +401,6 @@ function processMobForQuest(level, rarity) {
     }
 }
 
-var autoInventory = setInterval(function () {
-    equipAndSellInventory();
-}, 250);
-
-var autoFight = setInterval(function () {
-    if (game.inBattle) {
-        //ENDLESS_BOSSKILL is from Endless Improvement, might as well check for them
-        if (autoQuest && game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || x.type == QuestType.ENDLESS_BOSSKILL; }).length > 0) {
-            runQuest();
-        } else if (lootFarm) {
-            game.battleLevel = lootFarmStep * 35 + 1;
-            if (game.monster.level != game.battleLevel) { hopBattle(); }
-            if ((lootFarmRarities.indexOf(game.monster.rarity) > -1) || game.monster.rarity == maxMonsterRarity(game.battleLevel)) {
-                //One of the ones we're looking for
-                attack();
-            } else {
-                hopBattle();
-            }
-        } else {
-            game.battleLevel = XPFarmLevel;
-            if (game.monster.rarity != MonsterRarity.COMMON) {
-                hopBattle();
-            } else {
-                attack();
-            }
-        }
-    }
-}, 0);
-
-var autoMisc = setInterval(function () {
-    autoLevel();
-    autoBuy();
-    calculateXP();
-    updateMobLevels();
-}, 5000);
-
 function autoBuy() {
     var bestPurchase = efficiency()[0];
     while (game.player.gold > game.mercenaryManager[bestPurchase.name.toLowerCase() + "Price"]) {
@@ -432,6 +420,8 @@ function autoLevel() {
             statLevelUp();
         }
     }
+    
+    if (game.player.skillPoints <= 0) $("#levelUpButton").hide();
 }
 
 function abilityLevelUp() {
@@ -552,4 +542,92 @@ function calculateXP() {
     var earnedXP = game.stats.experienceEarned - lastXP;
     lastXP = game.stats.experienceEarned;
     XPS = earnedXP / 5;
+}
+
+function autoFight() {
+    if (game.inBattle) {
+        //ENDLESS_BOSSKILL is from Endless Improvement, might as well check for them
+        if (autoQuestEnabled && game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || x.type == QuestType.ENDLESS_BOSSKILL; }).length > 0) {
+            runQuest();
+        } else if (lootFarm) {
+            game.battleLevel = lootFarmStep * 35 + 1;
+            if (game.monster.level != game.battleLevel) { hopBattle(); }
+            if ((lootFarmRarities.indexOf(game.monster.rarity) > -1) || game.monster.rarity == maxMonsterRarity(game.battleLevel)) {
+                //One of the ones we're looking for
+                attack();
+            } else {
+                hopBattle();
+            }
+        } else {
+            game.battleLevel = XPFarmLevel;
+            if (game.monster.rarity != MonsterRarity.COMMON) {
+                hopBattle();
+            } else {
+                attack();
+            }
+        }
+    }
+}
+
+function autoBattleStart() {
+    
+    //Check mob levels
+    if (autoMobLevelUpdateEnabled) {
+        if (autoMobLevelUpdateBot) clearInterval(autoMobLevelUpdateBot);
+        updateMobLevels();
+        autoMobLevelUpdateBot = setInterval(function () {
+            updateMobLevels();
+        }, autoMobLevelUpdateBotInterval);
+    } else {
+        if (autoMobLevelUpdateBot) clearInterval(autoMobLevelUpdateBot);
+        autoMobLevelUpdateBot = 0;
+    }
+    
+    //Check inventory
+    if (autoInventoryEnabled) {
+        if (autoInventoryBot) clearInterval(autoInventoryBot);
+        equipAndSellInventory();
+        autoInventoryBot = setInterval(function () {
+            equipAndSellInventory();
+        }, autoInventoryBotInterval);
+    } else {
+        if (autoInventoryBot) clearInterval(autoInventoryBot);
+        autoInventoryBot = 0;
+    }
+    
+    //Check auto leveler
+    if (autoLevelEnabled) {
+        if (autoLevelBot) clearInterval(autoLevelBot);
+        autoLevel();
+        autoLevelBot = setInterval(function () {
+            autoLevel();
+        }, autoLevelBotInterval);
+    } else {
+        if (autoLevelBot) clearInterval(autoLevelBot);
+        autoLevelBot = 0;
+    }
+    
+    //Check auto buyer
+    if (autoBuyEnabled) {
+        if (autoBuyBot) clearInterval(autoBuyBot);
+        autoBuy();
+        autoBuyBot = setInterval(function () {
+            autoBuy();
+        }, autoBuyBotInterval);
+    } else {
+        if (autoBuyBot) clearInterval(autoBuyBot);
+        autoBuyBot = 0;
+    }
+    
+    //CHeck auto figher
+    if (autoFightEnabled) {
+        if (autoFightBot) clearInterval(autoFightBot);
+        autoBuy();
+        autoFightBot = setInterval(function () {
+            autoFight();
+        }, autoFightBotInterval);
+    } else {
+        if (autoFightBot) clearInterval(autoFightBot);
+        autoFightBot = 0;
+    }
 }
