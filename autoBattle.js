@@ -23,7 +23,7 @@ var autoMobLevelUpdateBotInterval = 10000;
 
 //Currently it is not possible to fight a mob above your level in game, but there's no logic check against it
 //If you feel it's cheating to fight higher level mobs, then leave this as true
-//Otherwise feel free to set to falase
+//Otherwise feel free to set to false
 var capMobLevelAtPlayerLevel = false;
 
 var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
@@ -94,7 +94,7 @@ function updateMobLevels() {
     }
     level--;
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
-    lootFarmStep = Math.floor((level - 1) / 35);
+    lootFarmStep = Math.max(0,Math.floor((level - 1) / 35));
 }
 
 //return true if you can constantly attack a mob of this level and rarity
@@ -548,11 +548,15 @@ function autoFight() {
         if (autoQuestEnabled && goodQuestAvailable()) {
             runQuest();
         } else if (lootFarm) {
+            console.log(game.battleLevel);
+            console.log(lootFarmStep);
             game.battleLevel = lootFarmStep * 35 + 1;
             if (game.monster.level != game.battleLevel) {
                 hopBattle();
             }
             while ((lootFarmRarities.indexOf(game.monster.rarity) == -1) && (game.monster.rarity != maxMonsterRarity(game.battleLevel))) {
+                console.log(game.moster.rarity);
+                console.log(maxMosterRarity(game.battleLevel));
                 hopBattle();
             }
             attack();
