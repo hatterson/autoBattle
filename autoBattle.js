@@ -504,8 +504,9 @@ function getIndexOfBestUpgrade() {
     index = upgradeNames.indexOf(StatUpgradeType.AGILITY);
     if (index>-1) return index;
     
-    index = upgradeNames.indexOf(StatUpgradeType.STAMINA);
-    if (index>-1) return index;
+    //stamina isn't useful currently
+    //index = upgradeNames.indexOf(StatUpgradeType.STAMINA);
+    //if (index>-1) return index;
     
     index = upgradeNames.indexOf(StatUpgradeType.DAMAGE);
     if (index>-1) return index;
