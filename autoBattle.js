@@ -439,9 +439,9 @@ function abilityLevelUp() {
 function getBestAbilityName() {
     var ability;
     
-    //Rejuv scales crazy with level and damage, I'll go with 1 stack every 25 player levels for now, capped at 10
-    //That should mean selecting it once every 5 ability level ups for the first 250 levels
-    if ((game.player.abilities.baseRejuvenatingStrikesLevel < Math.floor(game.player.level/25)) && game.player.abilities.baseRejuvenatingStrikesLevel <10) {
+    //Level rejuv until it heals full or until it heals half when you have double strike
+    var rejuvHealAmount = game.player.abilities.getRejuvenatingStrikesHealAmount(0);
+    if (game.player.getMaxHealth() > (rejuvHealAmount * (game.player.attackType == AttackType.DOUBLE_STRIKE ? 2 : 1))) {
         ability = AbilityName.REJUVENATING_STRIKES;
     } else {
         //Right now we're just going on lowest level, theoretically this should have some logic in it later
