@@ -388,6 +388,7 @@ var autoFight = setInterval(function () {
             runQuest();
         } else if (lootFarm) {
             game.battleLevel = lootFarmStep * 35 + 1;
+            if (game.monster.level != game.battleLevel) { hopBattle(); }
             if ((lootFarmRarities.indexOf(game.monster.rarity) > -1) || game.monster.rarity == maxMonsterRarity(game.battleLevel)) {
                 //One of the ones we're looking for
                 attack();
@@ -406,6 +407,7 @@ var autoFight = setInterval(function () {
 }, 0);
 
 var autoMisc = setInterval(function () {
+    autoLevel();
     autoBuy();
     calculateXP();
     updateMobLevels();
@@ -420,7 +422,7 @@ function autoBuy() {
 }
 
 function autoLevel() {
-    while (game.player.skillPoints > 0)
+    while (game.player.skillPoints > 0) {
         //level up is available
         if ((game.player.skillPointsSpent + 2) % 5 == 0) {
             //Level up type is selecting an ability
@@ -438,6 +440,8 @@ function abilityLevelUp() {
     
     var ability = getBestAbilityName();
     
+    console.log('Leveling to level ' + (game.player.skillPointsSpent + 1) + ' with ability ' + ability);
+    
     game.player.increaseAbilityPower(ability);
     
 }
@@ -445,8 +449,9 @@ function abilityLevelUp() {
 function getBestAbilityName() {
     var ability;
     
-    //Rejuv scales crazy with level and damage, so I'll just get it to level 5 for now...
-    if (game.player.abilities.baseRejuvenatingStrikesLevel < 5) {
+    //Rejuv scales crazy with level and damage, I'll go with 1 stack every 25 player levels for now, capped at 10
+    //That should mean selecting it once every 5 ability level ups for the first 250 levels
+    if ((game.player.abilities.baseRejuvenatingStrikesLevel < Math.floor(game.player.level/25)) && game.player.abilities.baseRejuvenatingStrikesLevel <10) {
         ability = AbilityName.REJUVENATING_STRIKES;
     } else {
         //Right now we're just going on lowest level, theoretically this should have some logic in it later
@@ -463,59 +468,80 @@ function getBestAbilityName() {
 }
 
 function statLevelUp() {
-    var upgrades = game.statUpgradeManager.upgrades[0];
     
-    var index;
-    var value = 0;
-    
-    for (var i=0; i<3; i++) {
-        var tmpVal = getStatUpgradeValue(upgrades.type, upgrades.amount);
-        if (tmpVal > value) {
-            //better than what we already had
-            value = tmpVal;
-            index = i;
-        }
-    }
-    
+    var index = getIndexOfBestUpgrade();
+
+    console.log('Leveling to level ' + (game.player.skillPointsSpent + 1) + ' with stat ' + game.statUpgradesManager.upgrades[0][index].type);
+
     //The function does the button click, it's annoying and I've asked the dev to refactor it, but for now I have to pass a button to it
-    statUpgradeButtonClick(document.getElementById('statUpgradeButton1'),index);
+    statUpgradeButtonClick(document.getElementById('statUpgradeButton1'),index+1);
     
 }
 
-function getStatUpgradeValue(type, amount) {
-    switch(type) {
-        case StatUpgradeType.ITEM_RARITY:
-            //9900 means that every boss will drop a legendary item
-            if (getItemRarityWithoutItems() < 9900) {
-                return 1000;
+function getIndexOfBestUpgrade() {
+    var upgradeNames = game.statUpgradesManager.upgrades[0].reduce(function (l, u) {
+        return l.concat(u.type);
+    }, []);
+    
+    var index = upgradeNames.indexOf(StatUpgradeType.ITEM_RARITY);
+    if ((getItemRarityWithoutItems() <= 9900) && index > -1) return index;
+    
+    index = upgradeNames.indexOf(StatUpgradeType.GOLD_GAIN);
+    if (index>-1) return index;
+    
+    index = upgradeNames.indexOf(StatUpgradeType.EXPERIENCE_GAIN);
+    if (index>-1) return index;
+    
+    //Strength and damage first
+    index = upgradeNames.indexOf(StatUpgradeType.STRENGTH);
+    var index2 = upgradeNames.indexOf(StatUpgradeType.DAMAGE);
+    
+    if (index > -1) {
+        if (index2 > -1) {
+            //has both
+            //Strength is converted to bonus damage and also gains HP so give it a 5% boost
+            //Yes I just made that up
+            if ((game.statUpgradesManager.upgrades[0][index].amount * 1.05) > game.statUpgradesManager.upgrades[0][index2].amount) {
+                return index;
             } else {
-                //no value at that point and there's going to be something else with value
-                return 0;
+                return index2;
             }
-            break;
-        case StatUpgradeType.GOLD_GAIN:
-                return 999;
-            break;
-        case StatUpgradeType.EXPERIENCE_GAIN:
-                return 998;
-            break;
-        case StatUpgradeType.DAMAGE:
-            break;
-        case StatUpgradeType.STRENGTH:
-            break;
-        case StatUpgradeType.AGILITY:
-            break;
-        case StatUpgradeType.CRIT_DAMAGE:
-            break;
-        case StatUpgradeType.STAMINA:
-        case StatUpgradeType.ARMOUR:
-        case StatUpgradeType.EVASION:
-        case StatUpgradeType.HP5:
-            //not really useful but need a value
-            return 0.1;
-            break;
+        } else {
+            //only has strength
+            return index;
+        }
+    } else if (index2 > -1) {
+        //only has Damage
+        return index2;
     }
+    
+    //Now crit and agi
+    index = upgradeNames.indexOf(StatUpgradeType.AGILITY);
+    index2 = upgradeNames.indexOf(StatUpgradeType.CRIT_DAMAGE);
+    
+        if (index > -1) {
+        if (index2 > -1) {
+            //has both
+            //Agi is converted to crit damage at the rate of .2 * powershards plus gains a tiny but from evasion, but who cares
+            if ((game.statUpgradesManager.upgrades[0][index].amount * (((game.player.powerShards / 100) + 1)*.2)) > game.statUpgradesManager.upgrades[0][index2].amount) {
+                return index;
+            } else {
+                return index2;
+            }
+        } else {
+            //only has strength
+            return index;
+        }
+    } else if (index2 > -1) {
+        //only has Damage
+        return index2;
+    }
+    
+    
+    //if we haven't returned by now, just pick the first one, they all suck anyway
+    return 0;
 }
+
 
 function getItemRarityWithoutItems() {
     return (game.player.baseStats.itemRarity + game.player.chosenLevelUpBonuses.itemRarity) * ((game.player.powerShards / 100) + 1);
