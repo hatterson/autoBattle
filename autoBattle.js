@@ -34,6 +34,11 @@ var XPS = 0;
 var lastXP = 0;
 var maxItemRarity = 9900;
 
+var ABPurchaseType = new Object();
+
+ABPurchaseType.MERCENARY = "MERCENARY";
+ABPurchaseType.UPGRADE = "UPGRADE";
+
 var lootFarmRarities = [MonsterRarity.BOSS, MonsterRarity.ELITE];
 
 setTimeout(function() { autoBattleStart(); }, 5000);
@@ -41,12 +46,58 @@ setTimeout(function() { autoBattleStart(); }, 5000);
 function efficiency() {
     return mercs.map(function (m) {
         return {
+            type: ABPurchaseType.MERCENARY,
             name: m.toUpperCase(),
-            efficiency: game.mercenaryManager[m + 'Price'] / parseFloat(game.mercenaryManager.getGps().replace(/,/g, '')) + game.mercenaryManager[m + 'Price'] / game.mercenaryManager.getMercenariesGps(m.toUpperCase())
+            efficiency: game.mercenaryManager.getMercenariesGps(m.toUpperCase()) / game.mercenaryManager[m + 'Price'],
+            cost: game.mercenaryManager[m + 'Price']
         }
-    }).sort(function (a, b) {
-        return a.efficiency > b.efficiency
-    });
+    }/*  Throws errors with weird UI interaction....I'll try and discuss with developer
+        ).concat(game.upgradeManager.upgrades.filter(function(u) { 
+        return u.available;
+        }).map(function(u) { 
+            return { 
+                type: ABPurchaseType.UPGRADE,
+                name: u.name.toUpperCase(),
+                efficiency: calculateUpgradeEfficiency(u.type, u.requirementType, u.cost),
+                cost: u.cost
+            }
+        }).sort(function (a,b) { return a.cost - b.cost; })*/
+    ).sort(function (a,b) { return b.efficiency - a.efficiency });
+}
+
+function calculateUpgradeEfficiency(type, requirementType, cost) {
+    switch (type) {
+        case UpgradeType.GPS:
+            switch (requirementType) {
+                case UpgradeRequirementType.FOOTMAN:
+                    return (game.mercenaryManager.footmenOwned * game.mercenaryManager.getMercenariesGps(MercenaryType.FOOTMAN) / cost);
+                case UpgradeRequirementType.CLERIC:
+                    return (game.mercenaryManager.clericsOwned * game.mercenaryManager.getMercenariesGps(MercenaryType.CLERIC) / cost);
+                case UpgradeRequirementType.COMMANDER:
+                    return (game.mercenaryManager.commandersOwned * game.mercenaryManager.getMercenariesGps(MercenaryType.COMMANDER) / cost);
+                case UpgradeRequirementType.MAGE:
+                    return (game.mercenaryManager.magesOwned * game.mercenaryManager.getMercenariesGps(MercenaryType.MAGE) / cost);
+                case UpgradeRequirementType.ASSASSIN:
+                    return (game.mercenaryManager.assassinsOwned * game.mercenaryManager.getMercenariesGps(MercenaryType.ASSASSIN) / cost);
+                case UpgradeRequirementType.WARLOCK:
+                    return (game.mercenaryManager.warlocksOwned * game.mercenaryManager.getMercenariesGps(MercenaryType.WARLOCK) / cost);
+                default:
+                    return 0;
+            }
+        case UpgradeType.SPECIAL:
+            //How to value specials?
+            return Number.POSITIVE_INFINITY;
+            break;
+        case UpgradeType.AUTO_SELL:
+            //How to value auto sells?
+            return Number.POSITIVE_INFINITY;
+            break;
+        case UpgradeType.ATTACK:
+            //highest priority, better than anything else
+            return Number.POSITIVE_INFINITY;
+        default:
+            return 0;
+    }
 }
 
 function maxMonsterRarity(level) {
@@ -418,10 +469,54 @@ function processMobForQuest(level, rarity) {
 
 function autoBuy() {
     var bestPurchase = efficiency()[0];
+    var bestPurchaseCost = getCostOfPurchase(bestPurchase);
     while (game.player.gold > game.mercenaryManager[bestPurchase.name.toLowerCase() + "Price"]) {
-        game.mercenaryManager.purchaseMercenary(bestPurchase.name);
+        doPurchase(bestPurchase);
         bestPurchase = efficiency()[0];
+        bestPurchaseCost = getCostOfPurchase(bestPurchase);
     }
+}
+
+function getCostOfPurchase(purchase) {
+    switch (purchase.type) {
+        case ABPurchaseType.MERCENARY:
+            return game.mercenaryManager[purchase.name.toLowerCase() + "Price"]
+        case ABPurchaseType.UPGRADE:
+            return getCostOfUpgrade(purchase.name);
+            break;
+        default:
+            return Number.POSITIVE_INFINITY;
+    }
+}
+
+function getCostOfUpgrade(name) {
+    var index = game.upgradeManager.upgrades.reduce(function(e, u) { return e.concat(u.name.toUpperCase()); }, []).indexOf(name);
+    return game.upgradeManager.upgrades[index].cost;
+}
+
+function doPurchase(purchase) {
+    switch (purchase.type) {
+        case ABPurchaseType.MERCENARY:
+            game.mercenaryManager.purchaseMercenary(purchase.name);
+            break;
+        case ABPurchaseType.UPGRADE:
+            purchaseUpgrade(purchase.name);
+            break;
+        default:
+            //Shouldn't ever get here...
+            break;
+    }
+}
+
+function purchaseUpgrade(name) {
+    var index = game.upgradeManager.upgrades.reduce(function(e, u) { return e.concat(u.name.toUpperCase()); }, []).indexOf(name);
+    console.log(index);
+    //For some reason you have to look up the ID in the purchaseButtonUpgradeIds array
+    index = game.upgradeManager.purchaseButtonUpgradeIds.indexOf(index);
+    console.log(index);
+    
+    game.upgradeManager.purchaseUpgrade(index);
+    
 }
 
 function autoLevel() {
