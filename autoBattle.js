@@ -548,15 +548,11 @@ function autoFight() {
         if (autoQuestEnabled && goodQuestAvailable()) {
             runQuest();
         } else if (lootFarm) {
-            console.log(game.battleLevel);
-            console.log(lootFarmStep);
             game.battleLevel = lootFarmStep * 35 + 1;
             if (game.monster.level != game.battleLevel) {
                 hopBattle();
             }
             while ((lootFarmRarities.indexOf(game.monster.rarity) == -1) && (game.monster.rarity != maxMonsterRarity(game.battleLevel))) {
-                console.log(game.moster.rarity);
-                console.log(maxMosterRarity(game.battleLevel));
                 hopBattle();
             }
             attack();
