@@ -86,17 +86,24 @@ function updateMobLevels() {
     XPFarmLevel = Math.max(1, level);
     if (capMobLevelAtPlayerLevel) XPFarmLevel = Math.min(game.player.level, level);
     level = 1;
-    var bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
-    //bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
-    while (!attackWillKill(bossHit, true) && !attackWillLoseHP(bossHit)) {
+    while (canFarm(level, MonsterRarity.BOSS)) {
         //loop until either the boss will one shot me or I'll lose HP
         level++;
-        bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
-        //bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
     }
     level--;
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     lootFarmStep = Math.floor(level / 35);
+}
+
+//return true if you can constantly attack a mob of this level and rarity
+function canFarm(level, rarity) {
+    var baseDamage = game.monsterCreator.calculateMonsterDamage(level, rarity);
+    if (attackWillKill(baseDamage, true) || attackWillLoseHP(baseDamage)) {
+        //can't farm it
+        return false;
+    } else {
+        return true;
+    }
 }
 
 function attackWillLoseHP(baseDamage) {
@@ -544,10 +551,21 @@ function calculateXP() {
     XPS = earnedXP / 5;
 }
 
+
+//Checks to see if there's a quest we can easily complete
+function goodQuestAvailable() {
+    var checkBossQuests = false;
+    if (canFarm(game.player.level, MonsterRarity.BOSS)) {
+        //If we can farm bosses, include those quests
+        checkBossQuests = true;
+    }
+    return game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || (checkBossQuests && x.type == QuestType.ENDLESS_BOSSKILL); }).length > 0;
+}
+
 function autoFight() {
     if (game.inBattle) {
         //ENDLESS_BOSSKILL is from Endless Improvement, might as well check for them
-        if (autoQuestEnabled && game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || x.type == QuestType.ENDLESS_BOSSKILL; }).length > 0) {
+        if (autoQuestEnabled && goodQuestAvailable()) {
             runQuest();
         } else if (lootFarm) {
             game.battleLevel = lootFarmStep * 35 + 1;
