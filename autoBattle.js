@@ -576,7 +576,10 @@ function autoFight() {
             runQuest();
         } else if (lootFarm) {
             game.battleLevel = lootFarmStep * 35 + 1;
-            while ((lootFarmRarities.indexOf(game.monster.rarity) == -1) &&  (game.monster.rarity != maxMonsterRarity(game.battleLevel)) && (game.monster.level != game.battleLevel)) {
+            if (game.monster.level != game.battleLevel) {
+                hopBattle();
+            }
+            while ((lootFarmRarities.indexOf(game.monster.rarity) == -1) && (game.monster.rarity != maxMonsterRarity(game.battleLevel))) {
                 hopBattle();
             }
             attack();
