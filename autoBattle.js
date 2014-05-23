@@ -146,7 +146,7 @@ function updateMobLevels() {
         level++;
     }
     level--;
-    XPFarmLevel = Math.min(level, maxMobLevel);
+    level = Math.min(level, maxMobLevel);
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     lootFarmStep = Math.max(0,Math.floor((level - 1) / 35));
 }
