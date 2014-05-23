@@ -63,22 +63,31 @@ function updateMobLevels() {
     if (capMobLevelAtPlayerLevel) XPFarmLevel = Math.min(game.player.level, level);
     level = 1;
     var bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
-    bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
-    while (bossHit < game.player.health / 2) {
+    //bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
+    while (!attackWillKill(bossHit, true) && !attackWillLoseHP(bossHit)) {
+        //loop until either the boss will one shot me or I'll lose HP
         level++;
         bossHit = ((Sigma(level) * Math.pow(1.01, level)) / 3) * 8;
-        bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
+        //bossHit -= Math.floor(bossHit * (game.player.calculateDamageReduction() / 100));
     }
     level--;
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     lootFarmStep = Math.floor(level / 35);
 }
 
-function attackWillKill() {
-    var damage = Math.max(0, game.monster.damage - Math.floor(game.monster.damage * (game.player.calculateDamageReduction() / 100)));
+function attackWillLoseHP(baseDamage) {
+    var damage = Math.max(0, baseDamage - Math.floor(baseDamage * (game.player.calculateDamageReduction() / 100)));
+    var healAmount = game.player.abilities.getRejuvenatingStrikesHealAmount(0) * (game.player.attackType == AttackType.DOUBLE_STRIKE ? 2 : 1);
+    return damage > healAmount;
+}
+
+function attackWillKill(monsterBaseDamage, fromFull) {
+    monsterDamage = defaultFor(monsterBaseDamage, game.monster.damage);
+    fromFull = defaultFor(fromFull, false);
+    var damage = Math.max(0, monsterDamage - Math.floor(monsterDamage * (game.player.calculateDamageReduction() / 100)));
     var healAmount = game.player.abilities.getRejuvenatingStrikesHealAmount(0) * (game.player.attackType == AttackType.DOUBLE_STRIKE ? 2 : 1);
     var playerHealthAfterHeal = Math.min(game.player.getMaxHealth(), game.player.health +  healAmount);
-    return game.monster.canAttack && playerHealthAfterHeal <= damage;
+    return (game.monster.canAttack || fromFull) && (fromFull ? game.player.getMaxHealth() : playerHealthAfterHeal) <= damage;
 }
 
 //Function will return the slot this should be equipped in.  -1 meaning it shouldn't be equipped.
@@ -379,6 +388,7 @@ var autoFight = setInterval(function () {
             runQuest();
         } else if (lootFarm) {
             game.battleLevel = lootFarmStep * 35 + 1;
+            if (game.monster.level != game.battleLevel) { hopBattle(); }
             if ((lootFarmRarities.indexOf(game.monster.rarity) > -1) || game.monster.rarity == maxMonsterRarity(game.battleLevel)) {
                 //One of the ones we're looking for
                 attack();
@@ -397,6 +407,7 @@ var autoFight = setInterval(function () {
 }, 0);
 
 var autoMisc = setInterval(function () {
+    autoLevel();
     autoBuy();
     calculateXP();
     updateMobLevels();
@@ -411,15 +422,131 @@ function autoBuy() {
 }
 
 function autoLevel() {
-    while (game.statUpgradesManager.upgrades.length > 0) {
+    while (game.player.skillPoints > 0) {
         //level up is available
         if ((game.player.skillPointsSpent + 2) % 5 == 0) {
             //Level up type is selecting an ability
+            abilityLevelUp();
         } else {
             //Stat level up type
+            statLevelUp();
         }
     }
 }
+
+function abilityLevelUp() {
+    //In case the user has it open, don't want to allow them to click it after a level up
+    $("#abilityUpgradesWindow").hide();
+    
+    var ability = getBestAbilityName();
+    
+    console.log('Leveling to level ' + (game.player.skillPointsSpent + 1) + ' with ability ' + ability);
+    
+    game.player.increaseAbilityPower(ability);
+    
+}
+
+function getBestAbilityName() {
+    var ability;
+    
+    //Rejuv scales crazy with level and damage, I'll go with 1 stack every 25 player levels for now, capped at 10
+    //That should mean selecting it once every 5 ability level ups for the first 250 levels
+    if ((game.player.abilities.baseRejuvenatingStrikesLevel < Math.floor(game.player.level/25)) && game.player.abilities.baseRejuvenatingStrikesLevel <10) {
+        ability = AbilityName.REJUVENATING_STRIKES;
+    } else {
+        //Right now we're just going on lowest level, theoretically this should have some logic in it later
+        if (game.player.abilities.baseRendLevel < game.player.abilities.baseIceBladeLevel) {
+            ability = AbilityName.FIRE_BLADE;
+            if (game.player.abilities.baseRendLevel < game.player.abilities.baseFireBladeLevel) ability = AbilityName.REND;
+        } else {
+            ability = AbilityName.FIRE_BLADE;
+            if (game.player.abilities.baseIceBladeLevel < game.player.abilities.baseFireBladeLevel) ability = AbilityName.ICE_BLADE;
+        }
+    }
+    
+    return ability;
+}
+
+function statLevelUp() {
+    
+    var index = getIndexOfBestUpgrade();
+
+    console.log('Leveling to level ' + (game.player.skillPointsSpent + 1) + ' with stat ' + game.statUpgradesManager.upgrades[0][index].type);
+
+    //The function does the button click, it's annoying and I've asked the dev to refactor it, but for now I have to pass a button to it
+    statUpgradeButtonClick(document.getElementById('statUpgradeButton1'),index+1);
+    
+}
+
+function getIndexOfBestUpgrade() {
+    var upgradeNames = game.statUpgradesManager.upgrades[0].reduce(function (l, u) {
+        return l.concat(u.type);
+    }, []);
+    
+    var index = upgradeNames.indexOf(StatUpgradeType.ITEM_RARITY);
+    if ((getItemRarityWithoutItems() <= 9900) && index > -1) return index;
+    
+    index = upgradeNames.indexOf(StatUpgradeType.GOLD_GAIN);
+    if (index>-1) return index;
+    
+    index = upgradeNames.indexOf(StatUpgradeType.EXPERIENCE_GAIN);
+    if (index>-1) return index;
+    
+    //Strength and damage first
+    index = upgradeNames.indexOf(StatUpgradeType.STRENGTH);
+    var index2 = upgradeNames.indexOf(StatUpgradeType.DAMAGE);
+    
+    if (index > -1) {
+        if (index2 > -1) {
+            //has both
+            //Strength is converted to bonus damage and also gains HP so give it a 5% boost
+            //Yes I just made that up
+            if ((game.statUpgradesManager.upgrades[0][index].amount * 1.05) > game.statUpgradesManager.upgrades[0][index2].amount) {
+                return index;
+            } else {
+                return index2;
+            }
+        } else {
+            //only has strength
+            return index;
+        }
+    } else if (index2 > -1) {
+        //only has Damage
+        return index2;
+    }
+    
+    //Now crit and agi
+    index = upgradeNames.indexOf(StatUpgradeType.AGILITY);
+    index2 = upgradeNames.indexOf(StatUpgradeType.CRIT_DAMAGE);
+    
+        if (index > -1) {
+        if (index2 > -1) {
+            //has both
+            //Agi is converted to crit damage at the rate of .2 * powershards plus gains a tiny but from evasion, but who cares
+            if ((game.statUpgradesManager.upgrades[0][index].amount * (((game.player.powerShards / 100) + 1)*.2)) > game.statUpgradesManager.upgrades[0][index2].amount) {
+                return index;
+            } else {
+                return index2;
+            }
+        } else {
+            //only has strength
+            return index;
+        }
+    } else if (index2 > -1) {
+        //only has Damage
+        return index2;
+    }
+    
+    
+    //if we haven't returned by now, just pick the first one, they all suck anyway
+    return 0;
+}
+
+
+function getItemRarityWithoutItems() {
+    return (game.player.baseStats.itemRarity + game.player.chosenLevelUpBonuses.itemRarity) * ((game.player.powerShards / 100) + 1);
+}
+
 
 function calculateXP() {
     var earnedXP = game.stats.experienceEarned - lastXP;
