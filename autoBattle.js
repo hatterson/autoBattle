@@ -24,7 +24,7 @@ var autoMobLevelUpdateBotInterval = 10000;
 //Currently it is not possible to fight a mob above your level in game, but there's no logic check against it
 //If you feel it's cheating to fight higher level mobs, then leave this as true
 //Otherwise feel free to set to falase
-var capMobLevelAtPlayerLevel = true;
+var capMobLevelAtPlayerLevel = false;
 
 var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
 var XPFarmLevel = 0;
@@ -32,6 +32,7 @@ var lootFarmStep = 0;
 var lootFarm = false;
 var XPS = 0;
 var lastXP = 0;
+var maxItemRarity = 9900;
 
 var lootFarmRarities = [MonsterRarity.BOSS, MonsterRarity.ELITE];
 
@@ -290,12 +291,13 @@ function isBetterThanStats(oldItem, newItem) {
     if (goldAndXPChange < 0) return false;
 
     //next is item rarity
-    if (oldItem.itemRarity > newItem.itemRarity) return false;
-    if (oldItem.itemRarity < newItem.itemRarity) return true;
+    var rarityChange = newItem.itemRarity - oldItem.itemRarity
+    if (rarityChange < 0 && game.player.getItemRarity() + rarityChange < maxItemRarity) return false;
+    if (rarityChange > 0 && game.player.getItemRarity() + rarityChange <= maxItemRarity) return true;
 
-    //then damage modifiers
-    if ((oldItem.strength + oldItem.agility) > (newItem.strength + newItem.agility)) return false;
-    if ((oldItem.strength + oldItem.agility) < (newItem.strength + newItem.agility)) return true;
+    //then ability modifiers
+    if ((oldItem.strength + oldItem.agility + oldItem.stamina) > (newItem.strength + newItem.agility + newItem.stamina)) return false;
+    if ((oldItem.strength + oldItem.agility + oldItem.stamina) < (newItem.strength + newItem.agility + newItem.stamina)) return true;
 
     //if we're equal to here just take the higher ilevel
     if (newItem.level > oldItem.level) return true;
@@ -458,12 +460,12 @@ function getBestAbilityName() {
         ability = AbilityName.REJUVENATING_STRIKES;
     } else {
         //Right now we're just going on lowest level, theoretically this should have some logic in it later
-        if (game.player.abilities.baseRendLevel < game.player.abilities.baseIceBladeLevel) {
-            ability = AbilityName.FIRE_BLADE;
-            if (game.player.abilities.baseRendLevel < game.player.abilities.baseFireBladeLevel) ability = AbilityName.REND;
+        if (game.player.abilities.baseIceBladeLevel == 0) {
+            ability = AbilityName.ICE_BLADE;
+        } else if (game.player.abilities.baseRendLevel == 0) {
+            ability = AbilityName.REND;
         } else {
             ability = AbilityName.FIRE_BLADE;
-            if (game.player.abilities.baseIceBladeLevel < game.player.abilities.baseFireBladeLevel) ability = AbilityName.ICE_BLADE;
         }
     }
     
@@ -487,60 +489,30 @@ function getIndexOfBestUpgrade() {
     }, []);
     
     var index = upgradeNames.indexOf(StatUpgradeType.ITEM_RARITY);
-    if ((getItemRarityWithoutItems() <= 9900) && index > -1) return index;
+    if ((getItemRarityWithoutItems() <= maxItemRarity) && index > -1) return index;
     
     index = upgradeNames.indexOf(StatUpgradeType.GOLD_GAIN);
     if (index>-1) return index;
     
-    index = upgradeNames.indexOf(StatUpgradeType.EXPERIENCE_GAIN);
-    if (index>-1) return index;
+//    index = upgradeNames.indexOf(StatUpgradeType.EXPERIENCE_GAIN);
+//    if (index>-1) return index;
     
     //Strength and damage first
     index = upgradeNames.indexOf(StatUpgradeType.STRENGTH);
-    var index2 = upgradeNames.indexOf(StatUpgradeType.DAMAGE);
+    if (index>-1) return index;
     
-    if (index > -1) {
-        if (index2 > -1) {
-            //has both
-            //Strength is converted to bonus damage and also gains HP so give it a 5% boost
-            //Yes I just made that up
-            if ((game.statUpgradesManager.upgrades[0][index].amount * 1.05) > game.statUpgradesManager.upgrades[0][index2].amount) {
-                return index;
-            } else {
-                return index2;
-            }
-        } else {
-            //only has strength
-            return index;
-        }
-    } else if (index2 > -1) {
-        //only has Damage
-        return index2;
-    }
-    
-    //Now crit and agi
     index = upgradeNames.indexOf(StatUpgradeType.AGILITY);
-    index2 = upgradeNames.indexOf(StatUpgradeType.CRIT_DAMAGE);
+    if (index>-1) return index;
     
-        if (index > -1) {
-        if (index2 > -1) {
-            //has both
-            //Agi is converted to crit damage at the rate of .2 * powershards plus gains a tiny but from evasion, but who cares
-            if ((game.statUpgradesManager.upgrades[0][index].amount * (((game.player.powerShards / 100) + 1)*.2)) > game.statUpgradesManager.upgrades[0][index2].amount) {
-                return index;
-            } else {
-                return index2;
-            }
-        } else {
-            //only has strength
-            return index;
-        }
-    } else if (index2 > -1) {
-        //only has Damage
-        return index2;
-    }
+    index = upgradeNames.indexOf(StatUpgradeType.STAMINA);
+    if (index>-1) return index;
     
+    index = upgradeNames.indexOf(StatUpgradeType.DAMAGE);
+    if (index>-1) return index;
     
+    index = upgradeNames.indexOf(StatUpgradeType.CRIT_DAMAGE);
+    if (index>-1) return index;
+
     //if we haven't returned by now, just pick the first one, they all suck anyway
     return 0;
 }
