@@ -93,7 +93,7 @@ function updateMobLevels() {
     }
     level--;
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
-    lootFarmStep = Math.floor(level / 35);
+    lootFarmStep = Math.floor((level - 1) / 35);
 }
 
 //return true if you can constantly attack a mob of this level and rarity
