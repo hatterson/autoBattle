@@ -25,6 +25,7 @@ var autoMobLevelUpdateBotInterval = 10000;
 //If you feel it's cheating to fight higher level mobs, then leave this as true
 //Otherwise feel free to set to false
 var capMobLevelAtPlayerLevel = false;
+var maxMobLevel = 14170;
 
 var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
 var XPFarmLevel = 0;
@@ -137,6 +138,7 @@ function updateMobLevels() {
     }
     level--;
     XPFarmLevel = Math.max(1, level);
+    XPFarmLevel = Math.min(level, maxMobLevel);
     if (capMobLevelAtPlayerLevel) XPFarmLevel = Math.min(game.player.level, level);
     level = 1;
     while (canFarm(level, MonsterRarity.BOSS)) {
@@ -144,6 +146,7 @@ function updateMobLevels() {
         level++;
     }
     level--;
+    XPFarmLevel = Math.min(level, maxMobLevel);
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     lootFarmStep = Math.max(0,Math.floor((level - 1) / 35));
 }
