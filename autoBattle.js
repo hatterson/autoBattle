@@ -25,7 +25,7 @@ var autoMobLevelUpdateBotInterval = 10000;
 //If you feel it's cheating to fight higher level mobs, then leave this as true
 //Otherwise feel free to set to false
 var capMobLevelAtPlayerLevel = false;
-var maxMobLevel = 14170;
+var maxMobLevel = 14100;
 
 var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
 var XPFarmLevel = 0;
