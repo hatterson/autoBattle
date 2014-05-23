@@ -1,3 +1,8 @@
+function defaultFor(arg, val) {
+    return typeof arg !== 'undefined' ? arg : val;
+}
+
+//Global variables
 var autoFightEnabled = true;
 var autoBuyEnabled = true;
 var autoQuestEnabled = true;
@@ -31,10 +36,6 @@ var lastXP = 0;
 var lootFarmRarities = [MonsterRarity.BOSS, MonsterRarity.ELITE];
 
 setTimeout(function() { autoBattleStart(); }, 5000);
-
-function defaultFor(arg, val) {
-    return typeof arg !== 'undefined' ? arg : val;
-}
 
 function efficiency() {
     return mercs.map(function (m) {
@@ -382,14 +383,20 @@ function attack() {
 
 //Automatically processes an attack or hop for the first quest in line that isn't a merc quest
 function runQuest() {
-    var quest = game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || x.type == QuestType.ENDLESS_BOSSKILL; })[0];
+    var EndlessBossType = defaultFor(QuestType.ENDLESS_BOSSKILL, "UNDEFINED");
+    var checkBossQuests = false;
+    if (canFarm(game.player.level, MonsterRarity.BOSS)) {
+        //If we can farm bosses, include those quests
+        checkBossQuests = true;
+    }
+    var quest = game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || (checkBossQuests && x.type == EndlessBossType); })[0];
     
     switch (quest.type) {
         case QuestType.KILL:
             //Kill X of Level Y type mobs  Best to use only commons for speed
             processMobForQuest(quest.typeId, MonsterRarity.COMMON);
             break;
-        case QuestType.ENDLESS_BOSSKILL:
+        case EndlessBossType:
             //Kill 1 boss of current player level
             processMobForQuest(game.player.level, MonsterRarity.BOSS);
             break;
@@ -401,11 +408,10 @@ function processMobForQuest(level, rarity) {
         game.battleLevel = level;
         hopBattle();
     }
-    if (game.monster.rarity != rarity) {
+    while (game.monster.rarity != rarity) {
         hopBattle();   
-    } else {
-        attack();
     }
+    attack();
 }
 
 function autoBuy() {
@@ -554,12 +560,13 @@ function calculateXP() {
 
 //Checks to see if there's a quest we can easily complete
 function goodQuestAvailable() {
+    var EndlessBossType = defaultFor(QuestType.ENDLESS_BOSSKILL, "UNDEFINED");
     var checkBossQuests = false;
     if (canFarm(game.player.level, MonsterRarity.BOSS)) {
         //If we can farm bosses, include those quests
         checkBossQuests = true;
     }
-    return game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || (checkBossQuests && x.type == QuestType.ENDLESS_BOSSKILL); }).length > 0;
+    return game.questsManager.quests.filter(function(x) { return x.type == QuestType.KILL || (checkBossQuests && x.type == EndlessBossType); }).length > 0;
 }
 
 function autoFight() {
@@ -569,20 +576,16 @@ function autoFight() {
             runQuest();
         } else if (lootFarm) {
             game.battleLevel = lootFarmStep * 35 + 1;
-            if (game.monster.level != game.battleLevel) { hopBattle(); }
-            if ((lootFarmRarities.indexOf(game.monster.rarity) > -1) || game.monster.rarity == maxMonsterRarity(game.battleLevel)) {
-                //One of the ones we're looking for
-                attack();
-            } else {
+            while ((lootFarmRarities.indexOf(game.monster.rarity) == -1) &&  (game.monster.rarity != maxMonsterRarity(game.battleLevel)) && (game.monster.level != game.battleLevel)) {
                 hopBattle();
             }
+            attack();
         } else {
             game.battleLevel = XPFarmLevel;
-            if (game.monster.rarity != MonsterRarity.COMMON) {
+            while (game.monster.rarity != MonsterRarity.COMMON) {
                 hopBattle();
-            } else {
-                attack();
-            }
+            } 
+            attack();
         }
     }
 }
