@@ -24,7 +24,7 @@ var autoMobLevelUpdateBotInterval = 10000;
 //Currently it is not possible to fight a mob above your level in game, but there's no logic check against it
 //If you feel it's cheating to fight higher level mobs, then leave this as true
 //Otherwise feel free to set to falase
-var capMobLevelAtPlayerLevel = true;
+var capMobLevelAtPlayerLevel = false;
 
 var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
 var XPFarmLevel = 0;
@@ -36,6 +36,14 @@ var lastXP = 0;
 var lootFarmRarities = [MonsterRarity.BOSS, MonsterRarity.ELITE];
 
 setTimeout(function() { autoBattleStart(); }, 5000);
+
+function turnOnLoot() {
+  if (game.player.effects.filter(function(e){return e.type == 'CRUSHING_BLOWS'}).length == 0) {
+    setTimeout(turnOnLoot, 1000);
+  } else {
+    lootFarm = true;
+  }
+}
 
 function efficiency() {
     return mercs.map(function (m) {
@@ -93,7 +101,9 @@ function updateMobLevels() {
     }
     level--;
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
-    lootFarmStep = Math.floor((level - 1) / 35);
+    //lootFarmStep = Math.floor((level - 1) / 35);
+    //Actually level up completely
+    lootFarmStep = level - 1;
 }
 
 //return true if you can constantly attack a mob of this level and rarity
@@ -223,13 +233,15 @@ function isBetterThanTrinket(oldTrinket, newTrinket) {
         return e.concat(n.type);
     }, []);
 
-    //Swiftness is the best
+    //Pillaging is best
+    var pillageChange = newTrinket.effects.reduce(function(s,n) {return n.type == 'PILLAGING' ? n.value : 0}, 0) -
+      oldTrinket.effects.reduce(function(s,n) {return n.type == 'PILLAGING' ? n.value : 0}, 0);
+    if (pillageChange > 0) return true;
+    if (pillageChange < 0) return false;
+
+    //Swiftness is next
     if (oldEffects.indexOf("SWIFTNESS") > -1 && newEffects.indexOf("SWIFTNESS") == -1) return false;
     if (newEffects.indexOf("SWIFTNESS") > -1 && oldEffects.indexOf("SWIFTNESS") == -1) return true;
-
-    //Pillaging is next
-    if (oldEffects.indexOf("PILLAGING") > -1 && newEffects.indexOf("PILLAGING") == -1) return false;
-    if (newEffects.indexOf("PILLAGING") > -1 && oldEffects.indexOf("PILLAGING") == -1) return true;
 
     //Berserking is very underpowered since it doesn't multiply ignore it for now
     //if (oldEffects.indexOf("BERSERKING") > -1 && newEffects.indexOf("BERSERKING") == -1) return false;
@@ -283,19 +295,25 @@ function isBetterThanStats(oldItem, newItem) {
     //we're under 100 and we're gaining crit
     if ((critChange > 0) && (game.player.getCritChance() < 100)) return true;
 
-    //otherwise, compare gold and XP gain
-    var goldAndXPChange = newItem.goldGain + newItem.experienceGain - (oldItem.goldGain + oldItem.experienceGain);
+    //otherwise, compare gold
+    var goldChange = newItem.goldGain - oldItem.goldGain;
 
-    if (goldAndXPChange > 0) return true;
-    if (goldAndXPChange < 0) return false;
+    if (goldChange > 0) return true;
+    if (goldChange < 0) return false;
 
     //next is item rarity
     if (oldItem.itemRarity > newItem.itemRarity) return false;
     if (oldItem.itemRarity < newItem.itemRarity) return true;
 
     //then damage modifiers
-    if ((oldItem.strength + oldItem.agility) > (newItem.strength + newItem.agility)) return false;
-    if ((oldItem.strength + oldItem.agility) < (newItem.strength + newItem.agility)) return true;
+    if (oldItem.strength > newItem.strength) return false;
+    if (oldItem.strength < newItem.strength) return true;
+    
+    if (oldItem.health > newItem.health) return false;
+    if (oldItem.health < newItem.health) return true;
+    
+    if (oldItem.agility > newItem.agility) return false;
+    if (oldItem.agility < newItem.agility) return true;
 
     //if we're equal to here just take the higher ilevel
     if (newItem.level > oldItem.level) return true;
@@ -575,7 +593,7 @@ function autoFight() {
         if (autoQuestEnabled && goodQuestAvailable()) {
             runQuest();
         } else if (lootFarm) {
-            game.battleLevel = lootFarmStep * 35 + 1;
+            game.battleLevel = lootFarmStep;
             if (game.monster.level != game.battleLevel) {
                 hopBattle();
             }
@@ -654,4 +672,6 @@ function autoBattleStart() {
         if (autoFightBot) clearInterval(autoFightBot);
         autoFightBot = 0;
     }
+    
+    turnOnLoot();
 }
