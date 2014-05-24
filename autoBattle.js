@@ -46,14 +46,15 @@ function turnOnLoot() {
 }
 
 function efficiency() {
-    return mercs.map(function (m) {
+/*    return mercs.map(function (m) {
         return {
             name: m.toUpperCase(),
             efficiency: game.mercenaryManager[m + 'Price'] / parseFloat(game.mercenaryManager.getGps().replace(/,/g, '')) + game.mercenaryManager[m + 'Price'] / game.mercenaryManager.getMercenariesGps(m.toUpperCase())
         }
     }).sort(function (a, b) {
         return a.efficiency > b.efficiency
-    });
+    });*/
+  return [{name: 'COMMANDER'}];
 }
 
 function maxMonsterRarity(level) {
@@ -233,15 +234,16 @@ function isBetterThanTrinket(oldTrinket, newTrinket) {
         return e.concat(n.type);
     }, []);
 
-    //Pillaging is best
+    //...okay, maybe Swiftness is important
+    if (oldEffects.indexOf("SWIFTNESS") > -1 && newEffects.indexOf("SWIFTNESS") == -1) return false;
+    if (newEffects.indexOf("SWIFTNESS") > -1 && oldEffects.indexOf("SWIFTNESS") == -1) return true;
+    
+    //Pillaging is pretty good too, though
     var pillageChange = newTrinket.effects.reduce(function(s,n) {return n.type == 'PILLAGING' ? n.value : 0}, 0) -
       oldTrinket.effects.reduce(function(s,n) {return n.type == 'PILLAGING' ? n.value : 0}, 0);
     if (pillageChange > 0) return true;
     if (pillageChange < 0) return false;
 
-    //Swiftness is next
-    if (oldEffects.indexOf("SWIFTNESS") > -1 && newEffects.indexOf("SWIFTNESS") == -1) return false;
-    if (newEffects.indexOf("SWIFTNESS") > -1 && oldEffects.indexOf("SWIFTNESS") == -1) return true;
 
     //Berserking is very underpowered since it doesn't multiply ignore it for now
     //if (oldEffects.indexOf("BERSERKING") > -1 && newEffects.indexOf("BERSERKING") == -1) return false;
