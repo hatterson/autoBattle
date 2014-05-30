@@ -140,14 +140,15 @@ function equipAndSellInventory() {
 
 function updateMobLevels() {
     var minDamage = getEstimatedDamage();
-    minDamage = getMinimumDamage();
+    minDamage = getMinimumDamage(1);
     var monsterHealth = 0;
     var level = 1;
     //keep going up while we can one shot
     while (monsterHealth < minDamage) {
         level++;
         //calculate health of mob at new level
-        monsterHealth = Sigma(level) * Math.pow(1.05, level) + 5;
+        monsterHealth = game.monsterCreator.calculateMonsterHealth(level, MonsterRarity.COMMON);
+        minDamage = getMinimumDamage(monsterHealth);
     }
     level--;
     XPFarmLevel = Math.max(1, level);
@@ -453,30 +454,38 @@ function getEstimatedDamage(mobLevel, assumeCrit, useMinimum) {
 //this is used for XP farming calculations, assumed to be fighting common mobs
 //debuffs from abilities are not calculated because we're assuming one shotting monsters, so only base damage matters
 //Previous function did average damage, we want minimum
-function getMinimumDamage() {
-    //mobLevel = defaultFor(mobLevel, game.player.level);
-    //assumeCrit = defaultFor(assumeCrit, true);
-    //useMinimum = defaultFor(useMinimum, false);
+function getMinimumDamage(monsterHealth) {
+    var minimumDamage = 0;
+    
     var crit = (game.player.getCritChance >= 100 ? true : false);
     //If we have 100% crit then we assume crit, otherwise we assume no crit
 
-
     var attacks = 0;
-    var damage = game.player.getMinDamage();
+    var weaponDamage = game.player.getMinDamage();
     
     // If the player is using power strike, multiply the damage
     if (game.player.attackType == AttackType.POWER_STRIKE) {
-        damage *= 1.5;
+        weaponDamage *= 1.5;
     }
 
     //average in crits
     if (crit)
     {
-        damage *= game.player.getCritDamage() / 100;
+        weaponDamage *= game.player.getCritDamage() / 100;
     }
 
 
-    //Crushing blows aren't consistent
+    //Crushing blows are 100% effective
+    var crushingBlowsEffects = game.player.getEffectsOfType(EffectType.CRUSHING_BLOWS);
+    var crushingBlowsModifier = 0;
+    var crushingBlowsDamage = 0;
+    if (crushingBlowsEffects.length > 0) {
+        for (var y = 0; y < crushingBlowsEffects.length; y++) {
+            crushingBlowsModifier += crushingBlowsEffects[y].value;
+        }
+    }
+
+    crushingBlowsDamage = (crushingBlowsModifier/100)*monsterHealth;
 
     var abilityDamage = 0;
 
@@ -486,20 +495,21 @@ function getMinimumDamage() {
         abilityDamage *= game.player.getCritDamage() / 100;
     }
 
-    attacks = 1;
+    //add ability damage
+    damage += abilityDamage;
+    
+    
+    minimumDamage = weaponDamage + abilityDamage + crushingBlowsDamage;
+
     if (game.player.attackType == AttackType.DOUBLE_STRIKE) {
-        attacks++;
+        //recalculate crushing blows damage for second attack based on first attack already having happened
+        crushingBlowsDamage = (crushingBlowsModifier/100)*(monsterHealth-minimumDamage);
+        //If it's already dead, don't add negative damage
+        crushingBlowsDamage = Math.max(crushingBlowsDamage,0);
+        minimumDamage += weaponDamage + abilityDamage + crushingBlowsDamage;
     }
 
-    //swiftness is a simple multiplier just like attack amount
-    var swiftnessEffects = game.player.getEffectsOfType(EffectType.SWIFTNESS);
-    attacks *= (swiftnessEffects.length + 1);
-
-    damage += abilityDamage;
-
-    damage *= attacks;
-
-    return damage;
+    return minimumDamage;
 }
 
 function hopBattle() {
