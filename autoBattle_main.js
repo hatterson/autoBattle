@@ -619,7 +619,7 @@ function abilityLevelUp() {
     
     var ability = getBestAbilityName();
     
-    console.log('Leveling to level ' + (game.player.skillPointsSpent + 1) + ' with ability ' + ability);
+    console.log('Leveling to level ' + (game.player.skillPointsSpent + 2) + ' with ability ' + ability);
     
     game.player.increaseAbilityPower(ability);
     
@@ -650,7 +650,7 @@ function statLevelUp() {
     
     var index = getIndexOfBestUpgrade();
 
-    console.log('Leveling to level ' + (game.player.skillPointsSpent + 1) + ' with stat ' + game.statUpgradesManager.upgrades[0][index].type);
+    console.log('Leveling to level ' + (game.player.skillPointsSpent + 2) + ' with stat ' + game.statUpgradesManager.upgrades[0][index].type);
 
     //The function does the button click, it's annoying and I've asked the dev to refactor it, but for now I have to pass a button to it
     statUpgradeButtonClick(document.getElementById('statUpgradeButton1'),index+1);
