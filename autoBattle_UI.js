@@ -1,32 +1,37 @@
 //Add UI for the first time
 
-function initializeAutoBattleUI() {
-    $("#optionsWindowOptionsArea").append('<div id="autoBattleOptionsTitle" class="optionsWindowOptionsTitle">autoBattle Options</div>');
-    
-    //Auto fight
-    $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoFight()">' +
-            'Fight automatically: <span id="toggleAutoFight">' + (autoFightEnabled ? 'ON' : 'OFF') + '</span></div>');
-            
-    //Auto buy mercs
-    $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoBuy()">' +
-            'Buy mercenaries automatically: <span id="toggleAutoBuy">' + (autoBuyEnabled ? 'ON' : 'OFF') + '</span></div>');
+var UIAdded = false;
 
-    //Auto Inventory
-    $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoInventory()">' +
-            'Manage inventory automatically: <span id="toggleAutoInventory">' + (autoInventoryEnabled ? 'ON' : 'OFF') + '</span></div>');
+function initializeAutoBattleUI() {
+    if (!UIAdded)
+    {
+        UIAdded = true;
+        $("#optionsWindowOptionsArea").append('<div id="autoBattleOptionsTitle" class="optionsWindowOptionsTitle">autoBattle Options</div>');
     
-    //Auto Level up
-    $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoLevel()">' +
-            'Level up automatically: <span id="toggleAutoLevel">' + (autoLevelEnabled ? 'ON' : 'OFF') + '</span></div>');
-    
-    //Auto Adjust mob level
-    $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoMobLevel()">' +
-            'Adjust mob levels automatically: <span id="toggleAutoMobLevel">' + (autoMobLevelUpdateEnabled ? 'ON' : 'OFF') + '</span></div>');
+        //Auto fight
+        $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoFight()">' +
+                'Fight automatically: <span id="toggleAutoFight">' + (autoFightEnabled ? 'ON' : 'OFF') + '</span></div>');
             
-    //Auto Quest
-    $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoQuest()">' +
-            'Complete quests automatically: <span id="toggleAutoQuest">' + (autoQuestEnabled ? 'ON' : 'OFF') + '</span></div>');
+        //Auto buy mercs
+        $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoBuy()">' +
+                'Buy mercenaries automatically: <span id="toggleAutoBuy">' + (autoBuyEnabled ? 'ON' : 'OFF') + '</span></div>');
+
+        //Auto Inventory
+        $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoInventory()">' +
+                'Manage inventory automatically: <span id="toggleAutoInventory">' + (autoInventoryEnabled ? 'ON' : 'OFF') + '</span></div>');
     
+        //Auto Level up
+        $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoLevel()">' +
+                'Level up automatically: <span id="toggleAutoLevel">' + (autoLevelEnabled ? 'ON' : 'OFF') + '</span></div>');
+    
+        //Auto Adjust mob level
+        $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoMobLevel()">' +
+                'Adjust mob levels automatically: <span id="toggleAutoMobLevel">' + (autoMobLevelUpdateEnabled ? 'ON' : 'OFF') + '</span></div>');
+            
+        //Auto Quest
+        $("#optionsWindowOptionsArea").append('<div class="optionsWindowOption" onmousedown="toggleAutoQuest()">' +
+                'Complete quests automatically: <span id="toggleAutoQuest">' + (autoQuestEnabled ? 'ON' : 'OFF') + '</span></div>');
+    }
 }
 
 function toggleAutoFight() {
