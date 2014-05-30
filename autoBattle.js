@@ -24,7 +24,7 @@ var autoMobLevelUpdateBotInterval = 10000;
 //Currently it is not possible to fight a mob above your level in game, but there's no logic check against it
 //If you feel it's cheating to fight higher level mobs, then leave this as true
 //Otherwise feel free to set to false
-var capMobLevelAtPlayerLevel = false;
+var capMobLevelAtPlayerLevel = true;
 var maxMobLevel = 14100;
 
 var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
@@ -140,6 +140,7 @@ function equipAndSellInventory() {
 
 function updateMobLevels() {
     var minDamage = getEstimatedDamage();
+    minDamage = getMinimumDamage();
     var monsterHealth = 0;
     var level = 1;
     //keep going up while we can one shot
@@ -446,6 +447,58 @@ function getEstimatedDamage(mobLevel, assumeCrit, useMinimum) {
     damageDone += berserkingDamage * attacks;
 
     return damageDone;
+}
+
+//this is used for XP farming calculations, assumed to be fighting common mobs
+//debuffs from abilities are not calculated because we're assuming one shotting monsters, so only base damage matters
+//Previous function did average damage, we want minimum
+function getMinimumDamage() {
+    //mobLevel = defaultFor(mobLevel, game.player.level);
+    //assumeCrit = defaultFor(assumeCrit, true);
+    //useMinimum = defaultFor(useMinimum, false);
+    var crit = (game.player.getCritChance >= 100 ? true : false);
+    //If we have 100% crit then we assume crit, otherwise we assume no crit
+
+
+    var attacks = 0;
+    var damage = game.player.getMinDamage();
+    
+    // If the player is using power strike, multiply the damage
+    if (game.player.attackType == AttackType.POWER_STRIKE) {
+        damage *= 1.5;
+    }
+
+    //average in crits
+    if (crit)
+    {
+        damage *= game.player.getCritDamage() / 100;
+    }
+
+
+    //Crushing blows aren't consistent
+
+    var abilityDamage = 0;
+
+    abilityDamage = game.player.abilities.getIceBladeDamage(0) + game.player.abilities.getFireBladeDamage(0);
+    if (crit)
+    {
+        abilityDamage *= game.player.getCritDamage() / 100;
+    }
+
+    attacks = 1;
+    if (game.player.attackType == AttackType.DOUBLE_STRIKE) {
+        attacks++;
+    }
+
+    //swiftness is a simple multiplier just like attack amount
+    var swiftnessEffects = game.player.getEffectsOfType(EffectType.SWIFTNESS);
+    attacks *= (swiftnessEffects.length + 1);
+
+    damage += abilityDamage;
+
+    damage *= attacks;
+
+    return damage;
 }
 
 function hopBattle() {
