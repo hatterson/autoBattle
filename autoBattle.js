@@ -2,7 +2,7 @@
 var scriptElement = document.getElementById( 'autoBattleScript' ),
 	baseUrl = scriptElement !== null ?
 		scriptElement.getAttribute('src').replace(/\/autoBattle\.js$/, '') :
-		'https://raw.githubusercontent.com/hatterson/autoBattle/master',
+		'http://hatterson.github.io/autoBattle',
 	autoBattle = {
 		'baseUrl': baseUrl,
 		'branch' : 'M',
