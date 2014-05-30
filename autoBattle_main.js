@@ -163,6 +163,7 @@ function updateMobLevels() {
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     //lootFarmStep = Math.max(0,Math.floor((level - 1) / 35));
     //Actually level up completely
+    lootFarmStep = level;
 }
 
 //return true if you can constantly attack a mob of this level and rarity
@@ -829,6 +830,9 @@ function autoBattleStart() {
         if (autoFightBot) clearInterval(autoFightBot);
         autoFightBot = 0;
     }
-    
+
     turnOnLoot();
+    
+    initializeAutoBattleUI();
+
 }
