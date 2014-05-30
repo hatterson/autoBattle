@@ -154,7 +154,7 @@ function updateMobLevels() {
     XPFarmLevel = Math.min(level, maxMobLevel);
     if (capMobLevelAtPlayerLevel) XPFarmLevel = Math.min(game.player.level, level);
     level = 1;
-    while (canFarm(level, MonsterRarity.BOSS)) {
+    while (canFarm(level, maxMonsterRarity(level))) {
         //loop until either the boss will one shot me or I'll lose HP
         level++;
     }
