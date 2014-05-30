@@ -30,7 +30,7 @@ var maxMobLevel = 14100;
 var mercs = ['footman', 'cleric', 'commander', 'mage', 'assassin', 'warlock'];
 var XPFarmLevel = 0;
 var lootFarmStep = 0;
-var lootFarm = true;
+var lootFarm = false;
 var XPS = 0;
 var lastXP = 0;
 var maxItemRarity = 9900;
@@ -44,8 +44,16 @@ var lootFarmRarities = [MonsterRarity.BOSS, MonsterRarity.ELITE];
 
 setTimeout(function() { autoBattleStart(); }, 5000);
 
+function turnOnLoot() {
+  if (game.player.effects.filter(function(e){return e.type == 'CRUSHING_BLOWS'}).length == 0) {
+    setTimeout(turnOnLoot, 1000);
+  } else {
+    lootFarm = true;
+  }
+}
+
 function efficiency() {
-    return mercs.map(function (m) {
+/*    return mercs.map(function (m) {
         return {
             type: ABPurchaseType.MERCENARY,
             name: m.toUpperCase(),
@@ -63,7 +71,9 @@ function efficiency() {
                 cost: u.cost
             }
         }).sort(function (a,b) { return a.cost - b.cost; })*/
-    ).sort(function (a,b) { return b.efficiency - a.efficiency });
+    ).sort(function (a,b) { return b.efficiency - a.efficiency });*/
+  return [{name: 'COMMANDER'}];
+
 }
 
 function calculateUpgradeEfficiency(type, requirementType, cost) {
@@ -100,6 +110,7 @@ function calculateUpgradeEfficiency(type, requirementType, cost) {
             return 0;
     }
 }
+
 
 function maxMonsterRarity(level) {
     if (level >= 30) {
@@ -148,7 +159,9 @@ function updateMobLevels() {
     level--;
     level = Math.min(level, maxMobLevel);
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
-    lootFarmStep = Math.max(0,Math.floor((level - 1) / 35));
+    //lootFarmStep = Math.max(0,Math.floor((level - 1) / 35));
+    //Actually level up completely
+    lootFarmStep = level - 1;
 }
 
 //return true if you can constantly attack a mob of this level and rarity
@@ -278,13 +291,16 @@ function isBetterThanTrinket(oldTrinket, newTrinket) {
         return e.concat(n.type);
     }, []);
 
-    //Swiftness is the best
+    //...okay, maybe Swiftness is important
     if (oldEffects.indexOf("SWIFTNESS") > -1 && newEffects.indexOf("SWIFTNESS") == -1) return false;
     if (newEffects.indexOf("SWIFTNESS") > -1 && oldEffects.indexOf("SWIFTNESS") == -1) return true;
+    
+    //Pillaging is pretty good too, though
+    var pillageChange = newTrinket.effects.reduce(function(s,n) {return n.type == 'PILLAGING' ? n.value : 0}, 0) -
+      oldTrinket.effects.reduce(function(s,n) {return n.type == 'PILLAGING' ? n.value : 0}, 0);
+    if (pillageChange > 0) return true;
+    if (pillageChange < 0) return false;
 
-    //Pillaging is next
-    if (oldEffects.indexOf("PILLAGING") > -1 && newEffects.indexOf("PILLAGING") == -1) return false;
-    if (newEffects.indexOf("PILLAGING") > -1 && oldEffects.indexOf("PILLAGING") == -1) return true;
 
     //Berserking is very underpowered since it doesn't multiply ignore it for now
     //if (oldEffects.indexOf("BERSERKING") > -1 && newEffects.indexOf("BERSERKING") == -1) return false;
@@ -338,11 +354,11 @@ function isBetterThanStats(oldItem, newItem) {
     //we're under 100 and we're gaining crit
     if ((critChange > 0) && (game.player.getCritChance() < 100)) return true;
 
-    //otherwise, compare gold and XP gain
-    var goldAndXPChange = newItem.goldGain + newItem.experienceGain - (oldItem.goldGain + oldItem.experienceGain);
+    //otherwise, compare gold
+    var goldChange = newItem.goldGain - oldItem.goldGain;
 
-    if (goldAndXPChange > 0) return true;
-    if (goldAndXPChange < 0) return false;
+    if (goldChange > 0) return true;
+    if (goldChange < 0) return false;
 
     //next is item rarity
     var rarityChange = newItem.itemRarity - oldItem.itemRarity
@@ -350,8 +366,14 @@ function isBetterThanStats(oldItem, newItem) {
     if (rarityChange > 0 && game.player.getItemRarity() + rarityChange <= maxItemRarity) return true;
 
     //then ability modifiers
-    if ((oldItem.strength + oldItem.agility + oldItem.stamina) > (newItem.strength + newItem.agility + newItem.stamina)) return false;
-    if ((oldItem.strength + oldItem.agility + oldItem.stamina) < (newItem.strength + newItem.agility + newItem.stamina)) return true;
+    if (oldItem.strength > newItem.strength) return false;
+    if (oldItem.strength < newItem.strength) return true;
+    
+    if (oldItem.health > newItem.health) return false;
+    if (oldItem.health < newItem.health) return true;
+    
+    if (oldItem.agility > newItem.agility) return false;
+    if (oldItem.agility < newItem.agility) return true;
 
     //if we're equal to here just take the higher ilevel
     if (newItem.level > oldItem.level) return true;
@@ -592,26 +614,55 @@ function getIndexOfBestUpgrade() {
     index = upgradeNames.indexOf(StatUpgradeType.GOLD_GAIN);
     if (index>-1) return index;
     
-//    index = upgradeNames.indexOf(StatUpgradeType.EXPERIENCE_GAIN);
-//    if (index>-1) return index;
+    index = upgradeNames.indexOf(StatUpgradeType.EXPERIENCE_GAIN);
+    if (index>-1) return index;
     
     //Strength and damage first
     index = upgradeNames.indexOf(StatUpgradeType.STRENGTH);
-    if (index>-1) return index;
+    var index2 = upgradeNames.indexOf(StatUpgradeType.DAMAGE);
     
+    if (index > -1) {
+        if (index2 > -1) {
+            //has both
+            //Strength is converted to bonus damage and also gains HP so give it a 5% boost
+            //Yes I just made that up
+            if ((game.statUpgradesManager.upgrades[0][index].amount * 1.05) > game.statUpgradesManager.upgrades[0][index2].amount) {
+                return index;
+            } else {
+                return index2;
+            }
+        } else {
+            //only has strength
+            return index;
+        }
+    } else if (index2 > -1) {
+        //only has Damage
+        return index2;
+    }
+    
+    //Now crit and agi
     index = upgradeNames.indexOf(StatUpgradeType.AGILITY);
-    if (index>-1) return index;
+    index2 = upgradeNames.indexOf(StatUpgradeType.CRIT_DAMAGE);
     
-    //stamina isn't useful currently
-    //index = upgradeNames.indexOf(StatUpgradeType.STAMINA);
-    //if (index>-1) return index;
+        if (index > -1) {
+        if (index2 > -1) {
+            //has both
+            //Agi is converted to crit damage at the rate of .2 * powershards plus gains a tiny but from evasion, but who cares
+            if ((game.statUpgradesManager.upgrades[0][index].amount * (((game.player.powerShards / 100) + 1)*.2)) > game.statUpgradesManager.upgrades[0][index2].amount) {
+                return index;
+            } else {
+                return index2;
+            }
+        } else {
+            //only has strength
+            return index;
+        }
+    } else if (index2 > -1) {
+        //only has Damage
+        return index2;
+    }
     
-    index = upgradeNames.indexOf(StatUpgradeType.DAMAGE);
-    if (index>-1) return index;
     
-    index = upgradeNames.indexOf(StatUpgradeType.CRIT_DAMAGE);
-    if (index>-1) return index;
-
     //if we haven't returned by now, just pick the first one, they all suck anyway
     return 0;
 }
@@ -646,7 +697,7 @@ function autoFight() {
         if (autoQuestEnabled && goodQuestAvailable()) {
             runQuest();
         } else if (lootFarm) {
-            game.battleLevel = lootFarmStep * 35 + 1;
+            game.battleLevel = lootFarmStep;
             if (game.monster.level != game.battleLevel) {
                 hopBattle();
             }
@@ -725,4 +776,6 @@ function autoBattleStart() {
         if (autoFightBot) clearInterval(autoFightBot);
         autoFightBot = 0;
     }
+    
+    turnOnLoot();
 }
