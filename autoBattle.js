@@ -70,9 +70,10 @@ function efficiency() {
                 efficiency: calculateUpgradeEfficiency(u.type, u.requirementType, u.cost),
                 cost: u.cost
             }
-        }).sort(function (a,b) { return a.cost - b.cost; })*/
+        }).sort(function (a,b) { return a.cost - b.cost; })
     ).sort(function (a,b) { return b.efficiency - a.efficiency });*/
-  return [{name: 'COMMANDER'}];
+  return [{name: 'COMMANDER',
+           type: ABPurchaseType.MERCENARY}];
 
 }
 
@@ -161,7 +162,6 @@ function updateMobLevels() {
     if (capMobLevelAtPlayerLevel) level = Math.min(game.player.level, level);
     //lootFarmStep = Math.max(0,Math.floor((level - 1) / 35));
     //Actually level up completely
-    lootFarmStep = level - 1;
 }
 
 //return true if you can constantly attack a mob of this level and rarity
@@ -495,7 +495,7 @@ function processMobForQuest(level, rarity) {
 function autoBuy() {
     var bestPurchase = efficiency()[0];
     var bestPurchaseCost = getCostOfPurchase(bestPurchase);
-    while (game.player.gold > game.mercenaryManager[bestPurchase.name.toLowerCase() + "Price"]) {
+    while (game.player.gold > bestPurchaseCost) {
         doPurchase(bestPurchase);
         bestPurchase = efficiency()[0];
         bestPurchaseCost = getCostOfPurchase(bestPurchase);
